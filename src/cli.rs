@@ -1,6 +1,7 @@
-//! Every TUI action is also a command, with --json for scripts.
+//! Reading and triage as commands, with --json for scripts. Compose, reply and forward
+//! live in the TUI; from a script, write your own draft and `parcel send` it.
 
-use crate::backend::{Backend, Envelope, exec};
+use crate::backend::{Backend, Envelope, Flag, exec};
 use crate::config::{self, Config};
 use clap::{Parser, Subcommand};
 use std::{io::Read, path::PathBuf};
@@ -36,6 +37,35 @@ pub enum Cmd {
     },
     /// Print a message
     Read {
+        id: String,
+        #[arg(short, long)]
+        mailbox: Option<String>,
+    },
+    /// Set a flag on a message
+    Flag {
+        id: String,
+        #[arg(long, default_value = "flagged", value_parser = ["seen", "flagged"])]
+        flag: String,
+        #[arg(short, long)]
+        mailbox: Option<String>,
+    },
+    /// Clear a flag on a message
+    Unflag {
+        id: String,
+        #[arg(long, default_value = "flagged", value_parser = ["seen", "flagged"])]
+        flag: String,
+        #[arg(short, long)]
+        mailbox: Option<String>,
+    },
+    /// Move a message to another mailbox
+    Move {
+        id: String,
+        target: String,
+        #[arg(short, long)]
+        mailbox: Option<String>,
+    },
+    /// Delete a message
+    Delete {
         id: String,
         #[arg(short, long)]
         mailbox: Option<String>,
@@ -85,6 +115,10 @@ pub enum HookCmd {
 
 pub fn run(cli: Cli) -> Result<(), String> {
     let Some(cmd) = cli.cmd else { return crate::tui::run(Config::load()?) };
+    // The Omarchy hook's `pkill -USR1 -x parcel` reaches CLI runs too, and SIGUSR1's
+    // default action is to terminate. Only the TUI repaints on it; everything else ignores it.
+    #[cfg(unix)]
+    let _ = signal_hook::flag::register(signal_hook::consts::SIGUSR1, std::sync::Arc::default());
     match &cmd {
         Cmd::Config(ConfigCmd::Init) => {
             for p in config::init(&config::config_dir())? {
@@ -129,6 +163,10 @@ pub fn run(cli: Cli) -> Result<(), String> {
             let body = be.read(&mbox(mailbox), &id)?;
             if cli.json { print_json(&serde_json::json!({ "id": id, "body": body })) } else { print!("{body}") }
         }
+        Cmd::Flag { id, flag, mailbox } => be.set_flag(&mbox(mailbox), &id, flag_of(&flag), true)?,
+        Cmd::Unflag { id, flag, mailbox } => be.set_flag(&mbox(mailbox), &id, flag_of(&flag), false)?,
+        Cmd::Move { id, target, mailbox } => be.move_to(&mbox(mailbox), &id, &target)?,
+        Cmd::Delete { id, mailbox } => be.delete(&mbox(mailbox), &id)?,
         Cmd::Send { file } => {
             let raw = match file {
                 Some(p) => std::fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))?,
@@ -146,6 +184,10 @@ pub fn run(cli: Cli) -> Result<(), String> {
         _ => unreachable!("handled above"),
     }
     Ok(())
+}
+
+fn flag_of(name: &str) -> Flag {
+    if name == "seen" { Flag::Seen } else { Flag::Flagged }
 }
 
 fn print_envelopes(list: &[Envelope], json: bool) {

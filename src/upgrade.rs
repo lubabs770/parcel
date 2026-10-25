@@ -39,16 +39,20 @@ pub fn run(check: bool) -> Result<(), String> {
     }
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let dir = exe.parent().ok_or("can't find this binary's directory")?;
-    // The URL is a constant passed as $1, never interpolated into the script.
+    // Download to a file first: `curl | sh` reports sh's status, so a failed download looked
+    // like success. The URL and path are passed as $1/$2, never interpolated into the script.
+    let script = std::env::temp_dir().join(format!("parcel-install-{}.sh", std::process::id()));
     let st = Command::new("sh")
         .arg("-c")
-        .arg("curl -fsSL \"$1\" | sh")
+        .arg("curl -fsSL \"$1\" -o \"$2\" && sh \"$2\"")
         .arg("sh")
         .arg(INSTALL_URL)
+        .arg(&script)
         .env("BIN_DIR", dir)
         .env("VERSION", &tag)
-        .status()
-        .map_err(|e| e.to_string())?;
+        .status();
+    let _ = std::fs::remove_file(&script);
+    let st = st.map_err(|e| e.to_string())?;
     if st.success() { Ok(()) } else { Err(format!("installer exited with {st}")) }
 }
 

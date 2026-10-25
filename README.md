@@ -10,7 +10,7 @@ A light, fast, yummy terminal mail client for any email CLI.
 - 8 built-in themes (and your own)
 - Optimistic triage: star, archive, move, delete update the screen immediately, the backend call happens after
 - Compose, reply, and forward hand off to `$EDITOR`
-- Every TUI action is also a `--json` command, for scripts
+- Reading and triage are also commands, with `--json` for scripts. Compose, reply and forward live in the TUI, or `parcel send` a draft you wrote
 
 ## Install
 
@@ -117,20 +117,25 @@ it immediate. `parcel omarchy hook uninstall` removes the line.
 ## CLI
 
 ```
-parcel                 open the TUI
-parcel mailboxes        list mailboxes
-parcel list              list envelopes in a mailbox
-parcel search QUERY       search a mailbox
-parcel read ID              print a message
-parcel send [FILE]           send a raw RFC 5322 message (FILE or stdin)
-parcel config init|path       write/print the config files
-parcel omarchy hook install|uninstall
-parcel doctor                 check the backend, templates and theme setup
-parcel log                     show the end of the error log
-parcel upgrade [--check]        install the latest release (or just check)
+parcel                                 open the TUI
+parcel mailboxes                       list mailboxes
+parcel list [-m MBOX] [-p N]           list envelopes in a mailbox
+parcel search QUERY                    search a mailbox
+parcel read ID                         print a message
+parcel flag ID [--flag F]              set a flag (seen|flagged, default flagged)
+parcel unflag ID [--flag F]            clear a flag
+parcel move ID TARGET                  move a message to another mailbox
+parcel delete ID                       delete a message
+parcel send [FILE]                     send a raw RFC 5322 message (FILE or stdin)
+parcel config init|path                write/print the config files
+parcel omarchy hook install|uninstall  repaint running parcels on theme change
+parcel doctor                          check the backend, templates and theme setup
+parcel log [-n LINES]                  show the end of the error log
+parcel upgrade [--check]               install the latest release (or just check)
 ```
 
 Add `--json` to any data-producing command for machine-readable output.
+Commands that act on a mailbox accept `-m MAILBOX` (default: your `inbox`).
 
 `parcel doctor` checks that every configured backend command is on `$PATH`,
 that mailboxes actually load, and whether the Omarchy hook is installed.

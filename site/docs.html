@@ -218,7 +218,7 @@ border    = "#3b4261"</code></pre><button class="copy" type="button">copy</butto
 
 <section id="cli">
   <h2><a href="#cli">CLI reference</a></h2>
-  <p>Every TUI action is also a command. <code>--json</code> works with every command and makes the data-producing ones print machine-readable JSON.</p>
+  <p>Reading and triage are also commands; compose, reply and forward live in the TUI, or write your own draft and <code>parcel send</code> it. <code>--json</code> works with every command and makes the data-producing ones print machine-readable JSON.</p>
   <div class="tablewrap"><table>
     <thead><tr><th>Command</th><th>What it does</th></tr></thead>
     <tbody>
@@ -227,6 +227,10 @@ border    = "#3b4261"</code></pre><button class="copy" type="button">copy</butto
       <tr><td><code>parcel list [-m MAILBOX] [-p PAGE]</code></td><td>List envelopes in a mailbox (default: your <code>inbox</code>, page 1)</td></tr>
       <tr><td><code>parcel search QUERY [-m MAILBOX] [-p PAGE]</code></td><td>Search a mailbox</td></tr>
       <tr><td><code>parcel read ID [-m MAILBOX]</code></td><td>Print a message</td></tr>
+      <tr><td><code>parcel flag ID [--flag seen|flagged] [-m MAILBOX]</code></td><td>Set a flag on a message (default: <code>flagged</code>)</td></tr>
+      <tr><td><code>parcel unflag ID [--flag seen|flagged] [-m MAILBOX]</code></td><td>Clear a flag on a message (default: <code>flagged</code>)</td></tr>
+      <tr><td><code>parcel move ID TARGET [-m MAILBOX]</code></td><td>Move a message to another mailbox</td></tr>
+      <tr><td><code>parcel delete ID [-m MAILBOX]</code></td><td>Delete a message</td></tr>
       <tr><td><code>parcel send [FILE]</code></td><td>Send a raw RFC 5322 message from a file, or from stdin</td></tr>
       <tr><td><code>parcel doctor</code></td><td>Check the backend, its templates and the theme setup</td></tr>
       <tr><td><code>parcel log [-n LINES]</code></td><td>Show the end of the error log (default: 40 lines)</td></tr>
