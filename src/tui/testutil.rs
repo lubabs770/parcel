@@ -12,6 +12,16 @@ pub struct Harness {
 }
 
 pub fn harness() -> Harness {
+    build("send")
+}
+
+/// Like `harness()`, but the `send` template runs the fake CLI's `fail` case instead of
+/// its `send` one — for a test that needs a send which fails.
+pub fn harness_with_failing_send() -> Harness {
+    build("fail")
+}
+
+fn build(send_action: &str) -> Harness {
     static ENV: Once = Once::new();
     // SAFETY: set once, before any test reads it; keeps parcel.log and drafts out of $HOME.
     ENV.call_once(|| unsafe { std::env::set_var("PARCEL_STATE_DIR", std::env::temp_dir().join("parcel-test-state")) });
@@ -30,7 +40,7 @@ flag = "{sh} flag {{id}} {{flag}}"
 unflag = "{sh} unflag {{id}} {{flag}}"
 move = "{sh} move {{id}} {{target}}"
 delete = "{sh} fail {{id}}"
-send = "{sh} send"
+send = "{sh} {send_action}"
 reply = "{sh} reply {{id}}"
 seen_flag = "seen"
 flagged_flag = "flagged"

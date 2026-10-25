@@ -132,10 +132,19 @@ fn status_bar(f: &mut Frame, app: &App, r: Rect) {
     f.render_widget(Block::new().style(Style::new().bg(t.surface)), r);
     let left: Vec<Span> = match &app.mode {
         Mode::Search(q) => vec![Span::styled(" / ", Style::new().fg(t.bg).bg(t.accent)), Span::raw(format!(" {q}▏"))],
-        Mode::Confirm(_) => vec![
-            Span::styled(" ✉ ", Style::new().fg(t.bg).bg(t.accent)),
-            Span::styled(" s send · e edit · d discard", Style::new().fg(t.fg)),
-        ],
+        Mode::Confirm(_) => {
+            let mut v = vec![
+                Span::styled(" ✉ ", Style::new().fg(t.bg).bg(t.accent)),
+                Span::styled(" s send · e edit · d discard", Style::new().fg(t.fg)),
+            ];
+            // Confirm never clears `status` on entry, so a kept-over editor-failure (or a
+            // refused send) stays visible here — always as an error, in danger colour.
+            if let Some((msg, _)) = &app.status {
+                v.push(Span::raw("  "));
+                v.push(Span::styled(msg.clone(), Style::new().fg(t.danger)));
+            }
+            v
+        }
         _ => {
             let mut v = vec![if app.busy > 0 { Span::styled(format!(" {} ", SPIN[app.tick % SPIN.len()]), Style::new().fg(t.accent)) } else { Span::raw("   ") }];
             if let Some((msg, err)) = &app.status {

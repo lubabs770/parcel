@@ -2,11 +2,10 @@
 
 use super::{compose, date, keys::{Action, Keymap}};
 pub use super::jobs::{Done, Job, Op, Undo};
-use crate::backend::{Backend, Envelope, Flag};
+use crate::backend::{Backend, Envelope};
 use crate::config::Config;
 use crate::theme::{self, Theme};
-#[allow(unused_imports)] // KeyModifiers gets its first caller in Task 10
-use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use ratatui::crossterm::event::{Event, KeyEventKind};
 use ratatui::{layout::Rect, widgets::ListState};
 use std::{collections::VecDeque, fs, path::PathBuf, sync::{Arc, mpsc::Sender}, time::Instant};
 
@@ -37,11 +36,17 @@ pub struct App {
     pub page: u32,
     pub more: bool,
     pub loading: bool,
+    /// Bumped by every `load_list` (a reload under the same mailbox/query counts). `done`
+    /// drops any `Done::List` whose job was spawned under an older generation.
+    pub(crate) list_gen: u64,
     pub query: Option<String>,
     pub reading: Option<(String, String)>,
     pub scroll: u16,
     pub focus: Pane,
     pub mode: Mode,
+    /// Set by `edited`: did the last $EDITOR round trip fail? Confirm's `s` refuses to send
+    /// while this is true, since there's nothing new to send.
+    pub(crate) edit_failed: bool,
     pub status: Option<(String, bool)>,
     pub busy: usize,
     pub tick: usize,
@@ -64,9 +69,9 @@ impl App {
             mailbox: cfg.settings.inbox.clone(),
             cfg, keys, theme, theme_name, backend, tx,
             mailboxes: vec![], mbox_sel: 0, envelopes: vec![], list_sel: 0, list_state: ListState::default(),
-            page: 1, more: false, loading: false, query: None, reading: None, scroll: 0,
-            focus: Pane::List, mode: Mode::Normal, status: None, busy: 0, tick: 0, now: date::now(),
-            rects: vec![], last_click: None, quit: false, bodies: VecDeque::new(),
+            page: 1, more: false, loading: false, list_gen: 0, query: None, reading: None, scroll: 0,
+            focus: Pane::List, mode: Mode::Normal, edit_failed: false, status: None, busy: 0, tick: 0,
+            now: date::now(), rects: vec![], last_click: None, quit: false, bodies: VecDeque::new(),
         })
     }
 
@@ -86,14 +91,20 @@ impl App {
 
     pub(crate) fn load_list(&mut self) {
         self.envelopes.clear();
+        self.list_gen += 1;
         (self.page, self.list_sel, self.more, self.loading) = (1, 0, false, true);
-        self.spawn(Job::List { mailbox: self.mailbox.clone(), query: self.query.clone(), page: 1 });
+        self.spawn(Job::List { mailbox: self.mailbox.clone(), query: self.query.clone(), page: 1, generation: self.list_gen });
     }
 
     pub(crate) fn prefetch(&mut self) {
         if self.more && !self.loading && self.list_sel + 10 >= self.envelopes.len() {
             self.loading = true;
-            self.spawn(Job::List { mailbox: self.mailbox.clone(), query: self.query.clone(), page: self.page + 1 });
+            self.spawn(Job::List {
+                mailbox: self.mailbox.clone(),
+                query: self.query.clone(),
+                page: self.page + 1,
+                generation: self.list_gen,
+            });
         }
     }
 
@@ -131,9 +142,12 @@ impl App {
                 }
                 self.mailboxes = m;
             }
-            Done::List { mailbox, query, page, res } => {
-                if !mailbox.eq_ignore_ascii_case(&self.mailbox) || query != self.query {
-                    return None; // a stale page: the user moved on
+            Done::List { mailbox, query, page, generation, res } => {
+                if !mailbox.eq_ignore_ascii_case(&self.mailbox) || query != self.query || generation != self.list_gen {
+                    return None; // a stale page: the user moved on, or reloaded under this same key
+                }
+                if page != 1 && page != self.page + 1 {
+                    return None; // an out-of-order page from this generation (a later one already landed)
                 }
                 self.loading = false;
                 match res {
@@ -157,7 +171,7 @@ impl App {
             }
             Done::Triage { res: Ok(()), .. } => {}
             Done::Triage { mailbox, undo, res: Err(e) } => {
-                if mailbox == self.mailbox {
+                if mailbox.eq_ignore_ascii_case(&self.mailbox) {
                     self.revert(undo);
                 }
                 self.error(e);
@@ -176,94 +190,13 @@ impl App {
         None
     }
 
-    pub(crate) fn revert(&mut self, undo: Undo) {
-        match undo {
-            Undo::Flag { id, flag, prev } => {
-                if let Some(e) = self.envelopes.iter_mut().find(|e| e.id == id) {
-                    match flag {
-                        Flag::Seen => e.seen = prev,
-                        Flag::Flagged => e.flagged = prev,
-                    }
-                }
-            }
-            Undo::Removed { at, env } => {
-                let at = at.min(self.envelopes.len());
-                self.envelopes.insert(at, env);
-            }
-        }
-    }
-
     /// The editor closed: ask what to do with the draft.
     pub fn edited(&mut self, path: PathBuf, res: Result<(), String>) {
         self.mode = Mode::Confirm(path);
+        self.edit_failed = res.is_err();
         if let Err(e) = res {
             self.error(e);
         }
-    }
-
-    fn key(&mut self, k: KeyEvent) -> Option<Effect> {
-        if !matches!(self.mode, Mode::Confirm(_)) {
-            self.status = None;
-        }
-        match &mut self.mode {
-            Mode::Normal => {}
-            Mode::Help => {
-                self.mode = Mode::Normal;
-                return None;
-            }
-            Mode::Search(q) => {
-                match k.code {
-                    KeyCode::Enter => {
-                        let q = std::mem::take(q);
-                        self.mode = Mode::Normal;
-                        self.query = (!q.trim().is_empty()).then_some(q);
-                        self.focus = Pane::List;
-                        self.load_list();
-                    }
-                    KeyCode::Esc => self.mode = Mode::Normal,
-                    KeyCode::Backspace => {
-                        q.pop();
-                    }
-                    KeyCode::Char(c) => q.push(c),
-                    _ => {}
-                }
-                return None;
-            }
-            Mode::Confirm(path) => {
-                let path = path.clone();
-                match k.code {
-                    KeyCode::Char('s' | 'y') | KeyCode::Enter => {
-                        self.mode = Mode::Normal;
-                        if self.backend.has("send") {
-                            self.info("sending…");
-                            self.spawn(Job::Send { path });
-                        } else {
-                            self.error(format!("no `send` template configured — draft kept at {}", path.display()));
-                        }
-                    }
-                    KeyCode::Char('e') => {
-                        self.mode = Mode::Normal;
-                        return Some(Effect::Edit(path));
-                    }
-                    KeyCode::Char('d') | KeyCode::Esc => {
-                        self.mode = Mode::Normal;
-                        let _ = fs::remove_file(&path);
-                        self.info("draft discarded");
-                    }
-                    _ => {}
-                }
-                return None;
-            }
-            Mode::Picker(_) => return self.picker_key(k),
-        }
-        let action = self.keys.action(k)?;
-        self.act(action)
-    }
-
-    /// Picker behaviour arrives in Task 11; until then any key closes it.
-    fn picker_key(&mut self, _k: KeyEvent) -> Option<Effect> {
-        self.mode = Mode::Normal;
-        None
     }
 
     /// Is the backend able to do this? Actions without a template are refused (and shown dim).
@@ -314,63 +247,5 @@ impl App {
             _ => {} // Tasks 10 and 11 fill these in
         }
         None
-    }
-
-    pub(crate) fn step(&mut self, d: isize) {
-        let clamp = |i: usize, len: usize| if len == 0 { 0 } else { (i as isize).saturating_add(d).clamp(0, len as isize - 1) as usize };
-        match self.focus {
-            Pane::Mailboxes => self.mbox_sel = clamp(self.mbox_sel, self.mailboxes.len()),
-            Pane::List => {
-                self.list_sel = clamp(self.list_sel, self.envelopes.len());
-                self.prefetch();
-            }
-            Pane::Reader => {
-                let lines = self.reading.as_ref().map_or(0, |(_, b)| b.lines().count());
-                self.scroll = clamp(self.scroll as usize, lines) as u16;
-            }
-        }
-    }
-
-    pub(crate) fn open(&mut self) {
-        match self.focus {
-            Pane::Mailboxes => {
-                if let Some(m) = self.mailboxes.get(self.mbox_sel).cloned() {
-                    self.goto(m);
-                }
-            }
-            Pane::List => {
-                let Some(env) = self.envelopes.get_mut(self.list_sel) else { return };
-                env.seen = true;
-                let id = env.id.clone();
-                self.focus = Pane::Reader;
-                self.scroll = 0;
-                match self.bodies.iter().find(|(i, _)| *i == id) {
-                    Some((_, body)) => self.reading = Some((id, body.clone())),
-                    None => {
-                        self.reading = Some((id.clone(), String::new()));
-                        self.spawn(Job::Read { mailbox: self.mailbox.clone(), id });
-                    }
-                }
-            }
-            Pane::Reader => {}
-        }
-    }
-
-    pub(crate) fn goto(&mut self, mailbox: String) {
-        self.mbox_sel = self.mailboxes.iter().position(|m| *m == mailbox).unwrap_or(self.mbox_sel);
-        self.mailbox = mailbox;
-        self.query = None;
-        self.reading = None;
-        self.focus = Pane::List;
-        self.load_list();
-    }
-
-    /// The message an action applies to: the open one in the reader, else the list selection.
-    #[allow(dead_code)] // used from Task 10
-    pub(crate) fn current_index(&self) -> Option<usize> {
-        match (&self.reading, self.focus) {
-            (Some((id, _)), Pane::Reader) => self.envelopes.iter().position(|e| e.id == *id),
-            _ => (self.list_sel < self.envelopes.len()).then_some(self.list_sel),
-        }
     }
 }
