@@ -1,6 +1,6 @@
 //! All TUI state and every state transition. Rendering lives in view.rs.
 
-use super::{compose, date, keys::{Action, Keymap}};
+use super::{compose, date, keys::{Action, Keymap, DEFAULTS}};
 pub use super::jobs::{Done, Job, Op, Undo};
 use crate::backend::{Backend, Draft, Envelope, Flag};
 use crate::config::Config;
@@ -269,7 +269,24 @@ impl App {
             Action::ReplyAll => self.draft(Draft::ReplyAll),
             Action::Forward => self.draft(Draft::Forward),
             Action::Help => self.mode = Mode::Help,
-            _ => {} // Task 11 fills these in
+            Action::Move => {
+                let items = self.mailboxes.iter().filter(|m| **m != self.mailbox).cloned().collect();
+                self.open_picker(PickKind::Move, items, 0);
+            }
+            Action::Themes => {
+                let items = theme::names(&self.cfg.dir);
+                let sel = items.iter().position(|n| *n == self.theme_name).unwrap_or(0);
+                self.open_picker(PickKind::Theme { before: self.theme_name.clone() }, items, sel);
+            }
+            Action::Palette => {
+                let mut items: Vec<String> = DEFAULTS
+                    .iter()
+                    .filter(|d| !matches!(d.2, Action::Up | Action::Down | Action::Top | Action::Bottom | Action::Open | Action::Back | Action::Palette))
+                    .map(|d| d.3.to_string())
+                    .collect();
+                items.extend(self.mailboxes.iter().map(|m| format!("go to {m}")));
+                self.open_picker(PickKind::Palette, items, 0);
+            }
         }
         None
     }

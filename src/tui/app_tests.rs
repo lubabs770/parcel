@@ -157,3 +157,51 @@ fn two_failed_deletes_restore_original_order() {
     let ids: Vec<&str> = h.app.envelopes.iter().map(|e| e.id.as_str()).collect();
     assert_eq!(ids, ["1", "2"], "both deletes failed; the rows must come back in their original order");
 }
+
+#[test]
+fn move_picker_moves_the_selection() {
+    let mut h = harness().started();
+    h.app.act(Action::Move);
+    let Mode::Picker(p) = &h.app.mode else { panic!("picker") };
+    assert_eq!(p.items, ["Archive"], "current mailbox is excluded");
+    h.type_str("arc");
+    h.press(KeyCode::Enter, KeyModifiers::NONE);
+    assert_eq!(h.app.envelopes.len(), 1);
+    h.settle();
+    assert!(std::fs::read_to_string(h.dir.path().join("argv.log")).unwrap().contains("move 1 Archive"));
+}
+
+#[test]
+fn theme_picker_previews_live_and_esc_restores() {
+    let mut h = harness().started();
+    h.app.act(Action::Themes);
+    h.type_str("gruv");
+    assert_eq!(h.app.theme_name, "gruvbox");
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+    assert_eq!(h.app.theme_name, "tokyo-night");
+}
+
+#[test]
+fn palette_runs_actions_and_jumps_to_mailboxes() {
+    let mut h = harness().started();
+    h.press(KeyCode::Char('p'), KeyModifiers::CONTROL);
+    h.type_str("star");
+    h.press(KeyCode::Enter, KeyModifiers::NONE);
+    assert!(h.app.envelopes[0].flagged);
+    h.settle();
+    h.press(KeyCode::Char('p'), KeyModifiers::CONTROL);
+    h.type_str("go to arch");
+    h.press(KeyCode::Enter, KeyModifiers::NONE);
+    assert_eq!(h.app.mailbox, "Archive");
+}
+
+#[test]
+fn search_runs_the_search_template() {
+    let mut h = harness().started();
+    h.press(KeyCode::Char('/'), KeyModifiers::NONE);
+    h.type_str("ada");
+    h.press(KeyCode::Enter, KeyModifiers::NONE);
+    h.settle();
+    assert_eq!(h.app.query.as_deref(), Some("ada"));
+    assert!(std::fs::read_to_string(h.dir.path().join("argv.log")).unwrap().contains("list Inbox ada"));
+}

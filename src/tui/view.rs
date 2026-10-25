@@ -28,7 +28,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         }
     }
     status_bar(f, app, status);
-    // Task 11: super::overlay::draw(f, app);
+    super::overlay::draw(f, app);
 }
 
 fn panel(app: &App, pane: Pane, title: String) -> Block<'static> {

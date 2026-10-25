@@ -2,10 +2,13 @@
 //! keep it under ~300 lines. Triage, compose and the picker/palette land here too, in
 //! Tasks 10–12.
 
-use super::app::{App, Effect, Mode, Pane};
+use super::app::{App, Effect, Mode, Pane, PickKind, Picker};
 use super::jobs::{Job, Op, Undo};
+use super::keys::DEFAULTS;
+use super::overlay::filter;
 use crate::backend::{Draft, Flag};
-use ratatui::crossterm::event::{KeyCode, KeyEvent};
+use crate::theme;
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::fs;
 
 impl App {
@@ -76,10 +79,85 @@ impl App {
         self.act(action)
     }
 
-    /// Picker behaviour arrives in Task 11; until then any key closes it.
-    fn picker_key(&mut self, _k: KeyEvent) -> Option<Effect> {
-        self.mode = Mode::Normal;
+    fn picker_key(&mut self, k: KeyEvent) -> Option<Effect> {
+        let Mode::Picker(p) = &mut self.mode else { return None };
+        let shown = filter(&p.items, &p.query);
+        let ctrl = k.modifiers.contains(KeyModifiers::CONTROL);
+        match k.code {
+            KeyCode::Esc => {
+                let before = match &p.kind {
+                    PickKind::Theme { before } => Some(before.clone()),
+                    _ => None,
+                };
+                self.mode = Mode::Normal;
+                if let Some(b) = before {
+                    self.set_theme(&b);
+                }
+                return None;
+            }
+            KeyCode::Enter => {
+                let choice = shown.get(p.sel).map(|&i| p.items[i].clone());
+                let kind = std::mem::replace(&mut p.kind, PickKind::Move);
+                self.mode = Mode::Normal;
+                return choice.and_then(|c| self.picked(kind, c));
+            }
+            KeyCode::Up | KeyCode::BackTab => p.sel = p.sel.saturating_sub(1),
+            KeyCode::Char('p' | 'k') if ctrl => p.sel = p.sel.saturating_sub(1),
+            KeyCode::Down | KeyCode::Tab => p.sel = (p.sel + 1).min(shown.len().saturating_sub(1)),
+            KeyCode::Char('n' | 'j') if ctrl => p.sel = (p.sel + 1).min(shown.len().saturating_sub(1)),
+            KeyCode::Backspace => {
+                p.query.pop();
+                p.sel = 0;
+            }
+            KeyCode::Char(c) => {
+                p.query.push(c);
+                p.sel = 0;
+            }
+            _ => {}
+        }
+        // Live preview while browsing themes (name computed first: set_theme needs &mut self).
+        let preview = match &self.mode {
+            Mode::Picker(Picker { kind: PickKind::Theme { .. }, items, query, sel }) => {
+                filter(items, query).get(*sel).map(|&i| items[i].clone())
+            }
+            _ => None,
+        };
+        if let Some(name) = preview {
+            self.set_theme(&name);
+        }
         None
+    }
+
+    fn picked(&mut self, kind: PickKind, choice: String) -> Option<Effect> {
+        match kind {
+            PickKind::Move => self.remove(Op::Move { target: choice }),
+            PickKind::Theme { .. } => {
+                self.set_theme(&choice);
+                self.info(format!("theme {choice} — put theme = \"{choice}\" in config.toml to keep it"));
+            }
+            PickKind::Palette => {
+                if let Some(m) = choice.strip_prefix("go to ") {
+                    self.goto(m.to_string());
+                } else if let Some(d) = DEFAULTS.iter().find(|d| d.3 == choice) {
+                    return self.act(d.2);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn set_theme(&mut self, name: &str) {
+        match theme::load(name, &self.cfg.dir) {
+            Ok(t) => {
+                self.theme = t;
+                self.theme_name = name.to_string();
+            }
+            Err(e) => self.error(e),
+        }
+    }
+
+    pub(crate) fn open_picker(&mut self, kind: PickKind, items: Vec<String>, sel: usize) {
+        self.mode = Mode::Picker(Picker { kind, query: String::new(), items, sel });
     }
 
     pub(crate) fn step(&mut self, d: isize) {

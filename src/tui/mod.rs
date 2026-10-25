@@ -6,6 +6,7 @@ pub mod compose;
 pub mod date;
 pub mod jobs;
 pub mod keys;
+pub mod overlay;
 pub mod view;
 #[cfg(test)]
 mod app_tests;
