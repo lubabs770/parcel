@@ -31,6 +31,12 @@ pub struct App {
     pub mbox_sel: usize,
     pub mailbox: String,
     pub envelopes: Vec<Envelope>,
+    /// Ids in the order the backend returned them for this listing (reset by `load_list`,
+    /// extended by `prefetch`'s pages) — unlike `envelopes`, `remove()` never touches it.
+    /// `revert` uses it to reinsert a failed triage at the right spot even when another
+    /// removal next to it is still in flight, reverting out of order, or never comes back
+    /// at all.
+    pub(crate) order: Vec<String>,
     pub list_sel: usize,
     pub list_state: ListState,
     pub page: u32,
@@ -68,7 +74,7 @@ impl App {
         Ok(Self {
             mailbox: cfg.settings.inbox.clone(),
             cfg, keys, theme, theme_name, backend, tx,
-            mailboxes: vec![], mbox_sel: 0, envelopes: vec![], list_sel: 0, list_state: ListState::default(),
+            mailboxes: vec![], mbox_sel: 0, envelopes: vec![], order: vec![], list_sel: 0, list_state: ListState::default(),
             page: 1, more: false, loading: false, list_gen: 0, query: None, reading: None, scroll: 0,
             focus: Pane::List, mode: Mode::Normal, edit_failed: false, status: None, busy: 0, tick: 0,
             now: date::now(), rects: vec![], last_click: None, quit: false, bodies: VecDeque::new(),
@@ -91,6 +97,7 @@ impl App {
 
     pub(crate) fn load_list(&mut self) {
         self.envelopes.clear();
+        self.order.clear();
         self.list_gen += 1;
         (self.page, self.list_sel, self.more, self.loading) = (1, 0, false, true);
         self.spawn(Job::List { mailbox: self.mailbox.clone(), query: self.query.clone(), page: 1, generation: self.list_gen });
@@ -154,7 +161,14 @@ impl App {
                     Ok(list) => {
                         self.more = list.len() as u32 >= self.cfg.settings.page_size;
                         self.page = page;
-                        if page == 1 { self.envelopes = list } else { self.envelopes.extend(list) }
+                        let ids = list.iter().map(|e| e.id.clone());
+                        if page == 1 {
+                            self.order = ids.collect();
+                            self.envelopes = list;
+                        } else {
+                            self.order.extend(ids);
+                            self.envelopes.extend(list);
+                        }
                     }
                     Err(e) => self.error(e),
                 }

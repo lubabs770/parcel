@@ -11,7 +11,10 @@ pub enum Op {
 
 pub enum Undo {
     Flag { id: String, flag: Flag, prev: bool },
-    Removed { at: usize, env: Envelope },
+    /// `revert` places `env` back using `App::order` (the backend's original listing
+    /// order), not a captured index — a raw index goes stale the moment a second
+    /// removal lands next to this one before either confirms.
+    Removed { env: Envelope },
 }
 
 pub enum Job {

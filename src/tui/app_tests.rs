@@ -146,3 +146,14 @@ fn missing_template_refuses_the_key() {
     assert_eq!(h.app.busy, 0);
     assert!(h.app.status.as_ref().is_some_and(|(m, err)| *err && m.contains("not available")));
 }
+
+#[test]
+fn two_failed_deletes_restore_original_order() {
+    let mut h = harness().started();
+    h.app.act(Action::Delete); // removes row 0 (id "1")
+    h.app.act(Action::Delete); // id "2" is now at row 0
+    h.settle();
+    h.settle();
+    let ids: Vec<&str> = h.app.envelopes.iter().map(|e| e.id.as_str()).collect();
+    assert_eq!(ids, ["1", "2"], "both deletes failed; the rows must come back in their original order");
+}

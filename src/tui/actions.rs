@@ -141,8 +141,14 @@ impl App {
                     }
                 }
             }
-            Undo::Removed { at, env } => {
-                let at = at.min(self.envelopes.len());
+            Undo::Removed { env } => {
+                // Where `env.id` sat in the backend's listing order, counting only ids
+                // still present now — so it lands in the right slot regardless of
+                // whether some other in-flight removal next to it has reverted yet.
+                let at = match self.order.iter().position(|id| *id == env.id) {
+                    Some(p) => self.order[..p].iter().filter(|id| self.envelopes.iter().any(|e| e.id == **id)).count(),
+                    None => self.envelopes.len(),
+                };
                 self.envelopes.insert(at, env);
             }
         }
@@ -179,7 +185,7 @@ impl App {
         }
         self.list_sel = self.list_sel.min(self.envelopes.len().saturating_sub(1));
         let mailbox = self.mailbox.clone();
-        self.spawn(Job::Triage { mailbox, id: env.id.clone(), op, undo: Undo::Removed { at: i, env } });
+        self.spawn(Job::Triage { mailbox, id: env.id.clone(), op, undo: Undo::Removed { env } });
         self.prefetch();
     }
 
