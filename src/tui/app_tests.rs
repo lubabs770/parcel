@@ -100,3 +100,49 @@ fn failed_send_keeps_the_draft_and_names_its_path() {
     assert!(is_err);
     assert!(msg.contains(&path.display().to_string()), "status names the draft path: {msg}");
 }
+
+#[test]
+fn star_is_optimistic_and_sticks() {
+    let mut h = harness().started();
+    h.app.act(Action::Star);
+    assert!(h.app.envelopes[0].flagged, "flips before the backend answers");
+    h.settle();
+    assert!(h.app.envelopes[0].flagged);
+    assert!(std::fs::read_to_string(h.dir.path().join("argv.log")).unwrap().contains("flag 1 flagged"));
+}
+
+#[test]
+fn failed_delete_puts_the_row_back() {
+    let mut h = harness().started();
+    h.app.act(Action::Delete);
+    assert_eq!(h.app.envelopes.len(), 1);
+    h.settle();
+    assert_eq!(h.app.envelopes.len(), 2);
+    assert_eq!(h.app.envelopes[0].id, "1");
+    assert!(h.app.status.as_ref().is_some_and(|(m, err)| *err && m.contains("boom")));
+}
+
+#[test]
+fn archive_moves_to_the_configured_mailbox() {
+    let mut h = harness().started();
+    h.app.act(Action::Archive);
+    h.settle();
+    assert_eq!(h.app.envelopes.len(), 1);
+    assert!(std::fs::read_to_string(h.dir.path().join("argv.log")).unwrap().contains("move 1 Archive"));
+}
+
+#[test]
+fn reply_fetches_a_draft_for_the_editor() {
+    let mut h = harness().started();
+    assert!(h.app.act(Action::Reply).is_none());
+    let Some(Effect::Edit(path)) = h.settle() else { panic!("expected the editor") };
+    assert!(std::fs::read_to_string(&path).unwrap().starts_with("Subject: Re:"));
+}
+
+#[test]
+fn missing_template_refuses_the_key() {
+    let mut h = harness().started();
+    h.press(KeyCode::Char('R'), KeyModifiers::SHIFT); // fake backend has no reply_all
+    assert_eq!(h.app.busy, 0);
+    assert!(h.app.status.as_ref().is_some_and(|(m, err)| *err && m.contains("not available")));
+}

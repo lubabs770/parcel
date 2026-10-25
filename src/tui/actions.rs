@@ -3,8 +3,8 @@
 //! Tasks 10–12.
 
 use super::app::{App, Effect, Mode, Pane};
-use super::jobs::{Job, Undo};
-use crate::backend::Flag;
+use super::jobs::{Job, Op, Undo};
+use crate::backend::{Draft, Flag};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use std::fs;
 
@@ -149,11 +149,49 @@ impl App {
     }
 
     /// The message an action applies to: the open one in the reader, else the list selection.
-    #[allow(dead_code)] // used from Task 10
     pub(crate) fn current_index(&self) -> Option<usize> {
         match (&self.reading, self.focus) {
             (Some((id, _)), Pane::Reader) => self.envelopes.iter().position(|e| e.id == *id),
             _ => (self.list_sel < self.envelopes.len()).then_some(self.list_sel),
         }
+    }
+
+    pub(crate) fn toggle(&mut self, flag: Flag) {
+        let Some(i) = self.current_index() else { return };
+        let e = &mut self.envelopes[i];
+        let slot = match flag {
+            Flag::Seen => &mut e.seen,
+            Flag::Flagged => &mut e.flagged,
+        };
+        let prev = *slot;
+        *slot = !prev;
+        let id = e.id.clone();
+        let mailbox = self.mailbox.clone();
+        self.spawn(Job::Triage { mailbox, id: id.clone(), op: Op::Flag { flag, on: !prev }, undo: Undo::Flag { id, flag, prev } });
+    }
+
+    pub(crate) fn remove(&mut self, op: Op) {
+        let Some(i) = self.current_index() else { return };
+        let env = self.envelopes.remove(i);
+        if self.reading.as_ref().is_some_and(|(id, _)| *id == env.id) {
+            self.reading = None;
+            self.focus = Pane::List;
+        }
+        self.list_sel = self.list_sel.min(self.envelopes.len().saturating_sub(1));
+        let mailbox = self.mailbox.clone();
+        self.spawn(Job::Triage { mailbox, id: env.id.clone(), op, undo: Undo::Removed { at: i, env } });
+        self.prefetch();
+    }
+
+    pub(crate) fn draft(&mut self, kind: Draft) {
+        let id = match kind {
+            Draft::New => String::new(),
+            _ => match self.current_index() {
+                Some(i) => self.envelopes[i].id.clone(),
+                None => return,
+            },
+        };
+        self.info("preparing draft…");
+        self.spawn(Job::Draft { kind, mailbox: self.mailbox.clone(), id });
     }
 }

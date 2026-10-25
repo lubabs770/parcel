@@ -2,7 +2,7 @@
 
 use super::{compose, date, keys::{Action, Keymap}};
 pub use super::jobs::{Done, Job, Op, Undo};
-use crate::backend::{Backend, Envelope};
+use crate::backend::{Backend, Draft, Envelope, Flag};
 use crate::config::Config;
 use crate::theme::{self, Theme};
 use ratatui::crossterm::event::{Event, KeyEventKind};
@@ -243,8 +243,19 @@ impl App {
                 Pane::Mailboxes => {}
             },
             Action::Search => self.mode = Mode::Search(self.query.clone().unwrap_or_default()),
+            Action::Star => self.toggle(Flag::Flagged),
+            Action::ToggleRead => self.toggle(Flag::Seen),
+            Action::Delete => self.remove(Op::Delete),
+            Action::Archive => {
+                let target = self.cfg.settings.archive.clone();
+                self.remove(Op::Move { target });
+            }
+            Action::Compose => self.draft(Draft::New),
+            Action::Reply => self.draft(Draft::Reply),
+            Action::ReplyAll => self.draft(Draft::ReplyAll),
+            Action::Forward => self.draft(Draft::Forward),
             Action::Help => self.mode = Mode::Help,
-            _ => {} // Tasks 10 and 11 fill these in
+            _ => {} // Task 11 fills these in
         }
         None
     }
