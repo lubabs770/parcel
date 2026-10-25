@@ -179,7 +179,11 @@ pub fn hook_install(path: &Path) -> Result<bool, String> {
     if hook_installed(path) {
         return Ok(false);
     }
-    let mut s = fs::read_to_string(path).unwrap_or_else(|_| "#!/bin/sh\n".into());
+    let mut s = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => "#!/bin/sh\n".into(),
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    };
     if !s.ends_with('\n') {
         s.push('\n');
     }
@@ -201,7 +205,15 @@ pub fn hook_uninstall(path: &Path) -> Result<bool, String> {
     if !s.contains("# parcel:") {
         return Ok(false);
     }
-    let kept: String = s.lines().filter(|l| !l.contains("# parcel:")).map(|l| format!("{l}\n")).collect();
+    let had_trailing_newline = s.ends_with('\n');
+    let kept: String = s.lines().filter(|l| !l.contains("# parcel:")).collect::<Vec<_>>().join("\n");
+    let kept = if had_trailing_newline && !kept.is_empty() {
+        format!("{kept}\n")
+    } else if kept.is_empty() {
+        String::new()
+    } else {
+        kept
+    };
     fs::write(path, kept).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(true)
 }
@@ -271,5 +283,19 @@ mod tests {
         let p = d.path().join("omarchy/hooks/theme-set");
         assert!(hook_install(&p).unwrap());
         assert!(fs::read_to_string(&p).unwrap().starts_with("#!/bin/sh\n"));
+    }
+
+    #[test]
+    fn hook_install_rejects_unreadable_files() {
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("hooks/theme-set");
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        // Write non-UTF-8 bytes
+        fs::write(&p, b"#!/bin/sh\n\xff\xfe\n").unwrap();
+        let original = fs::read(&p).unwrap();
+        // hook_install should return error, not overwrite
+        assert!(hook_install(&p).is_err());
+        // File must be unchanged
+        assert_eq!(fs::read(&p).unwrap(), original);
     }
 }
