@@ -1,6 +1,7 @@
 //! Colour tokens. Built-ins, your own themes/<name>.toml, or Omarchy's.
 
 pub mod builtin;
+pub mod omarchy;
 
 use ratatui::style::Color;
 use serde::Deserialize;
@@ -62,7 +63,7 @@ pub fn rgb(s: &str) -> Option<(u8, u8, u8)> {
 
 pub fn load(name: &str, config_dir: &Path) -> Result<Theme, String> {
     if name == "auto" {
-        return Ok(builtin::default()); // Task 7 makes this follow Omarchy
+        return Ok(omarchy::load().unwrap_or_else(|_| builtin::default()));
     }
     if let Some(t) = builtin::get(name) {
         return Ok(t);

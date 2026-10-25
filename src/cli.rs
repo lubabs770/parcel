@@ -52,6 +52,9 @@ pub enum Cmd {
     /// Config files
     #[command(subcommand)]
     Config(ConfigCmd),
+    /// Omarchy integration
+    #[command(subcommand)]
+    Omarchy(OmarchyCmd),
 }
 
 #[derive(Subcommand)]
@@ -60,6 +63,19 @@ pub enum ConfigCmd {
     Init,
     /// Print the config directory
     Path,
+}
+
+#[derive(Subcommand)]
+pub enum OmarchyCmd {
+    /// Omarchy's theme-set hook: repaint running parcels instantly on theme change
+    #[command(subcommand)]
+    Hook(HookCmd),
+}
+
+#[derive(Subcommand)]
+pub enum HookCmd {
+    Install,
+    Uninstall,
 }
 
 pub fn run(cli: Cli) -> Result<(), String> {
@@ -85,6 +101,15 @@ pub fn run(cli: Cli) -> Result<(), String> {
             return Ok(());
         }
         Cmd::Doctor => return crate::doctor::run(),
+        Cmd::Omarchy(OmarchyCmd::Hook(h)) => {
+            let p = crate::theme::omarchy::hook_path();
+            let changed = match h {
+                HookCmd::Install => crate::theme::omarchy::hook_install(&p)?,
+                HookCmd::Uninstall => crate::theme::omarchy::hook_uninstall(&p)?,
+            };
+            println!("{} {}", if changed { "updated" } else { "unchanged:" }, p.display());
+            return Ok(());
+        }
         _ => {}
     }
     let cfg = Config::load()?;

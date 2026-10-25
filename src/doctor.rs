@@ -34,6 +34,18 @@ pub fn run() -> Result<(), String> {
         Ok(m) => check(true, format!("mailboxes  {} found", m.len())),
         Err(e) => check(false, format!("mailboxes  {e}")),
     }
+    use crate::theme::omarchy;
+    match omarchy::theme_dir() {
+        Some(d) => {
+            check(true, format!("omarchy    {} ({})", omarchy::name().unwrap_or_default(), d.display()));
+            if omarchy::hook_installed(&omarchy::hook_path()) {
+                check(true, "omarchy    theme hook installed".into());
+            } else {
+                println!("· omarchy    no hook: `parcel omarchy hook install` repaints instantly (polling works too)");
+            }
+        }
+        None => println!("· omarchy    not detected"),
+    }
     if ok { Ok(()) } else { Err("doctor found problems".into()) }
 }
 
