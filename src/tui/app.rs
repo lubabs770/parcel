@@ -60,6 +60,7 @@ pub struct App {
     pub rects: Vec<(Pane, Rect)>,
     pub last_click: Option<(Instant, u16, u16)>,
     pub quit: bool,
+    pub(crate) omarchy_sig: String,
     pub(crate) bodies: VecDeque<(String, String)>,
     pub(crate) backend: Arc<Backend>,
     pub(crate) tx: Sender<Msg>,
@@ -77,7 +78,8 @@ impl App {
             mailboxes: vec![], mbox_sel: 0, envelopes: vec![], order: vec![], list_sel: 0, list_state: ListState::default(),
             page: 1, more: false, loading: false, list_gen: 0, query: None, reading: None, scroll: 0,
             focus: Pane::List, mode: Mode::Normal, edit_failed: false, status: None, busy: 0, tick: 0,
-            now: date::now(), rects: vec![], last_click: None, quit: false, bodies: VecDeque::new(),
+            now: date::now(), rects: vec![], last_click: None, quit: false,
+            omarchy_sig: theme::omarchy::signature(), bodies: VecDeque::new(),
         })
     }
 
@@ -125,18 +127,15 @@ impl App {
 
     pub fn update(&mut self, msg: Msg) -> Option<Effect> {
         match msg {
-            Msg::Tick => {
-                self.tick += 1;
-                self.now = date::now();
-                None
-            }
-            Msg::Repaint => None, // Task 12
+            Msg::Tick => { self.on_tick(); None }
+            Msg::Repaint => { self.repaint(); None }
             Msg::Done(d) => {
                 self.busy = self.busy.saturating_sub(1);
                 self.done(d)
             }
             Msg::Input(Event::Key(k)) if k.kind == KeyEventKind::Press => self.key(k),
-            Msg::Input(_) => None, // Task 12 adds mouse
+            Msg::Input(Event::Mouse(m)) => { self.mouse(m); None }
+            Msg::Input(_) => None,
         }
     }
 

@@ -6,6 +6,7 @@ pub mod compose;
 pub mod date;
 pub mod jobs;
 pub mod keys;
+mod live;
 pub mod overlay;
 pub mod view;
 #[cfg(test)]
@@ -32,6 +33,7 @@ pub fn run(cfg: Config) -> Result<(), String> {
     let paused = Arc::new(AtomicBool::new(false));
     spawn_input(tx.clone(), paused.clone());
     spawn_ticker(tx.clone());
+    spawn_signals(tx.clone());
 
     // One panic hook, installed once, ever: it disables mouse capture (ratatui's own
     // panic hook, installed below by try_init, doesn't know mouse capture is on — we
@@ -117,3 +119,21 @@ fn spawn_ticker(tx: Sender<Msg>) {
         }
     });
 }
+
+/// `parcel omarchy hook install` makes Omarchy send SIGUSR1 on theme change.
+#[cfg(unix)]
+fn spawn_signals(tx: Sender<Msg>) {
+    use signal_hook::{consts::SIGUSR1, iterator::Signals};
+    if let Ok(mut signals) = Signals::new([SIGUSR1]) {
+        thread::spawn(move || {
+            for _ in signals.forever() {
+                if tx.send(Msg::Repaint).is_err() {
+                    return;
+                }
+            }
+        });
+    }
+}
+
+#[cfg(not(unix))]
+fn spawn_signals(_tx: Sender<Msg>) {}

@@ -1,6 +1,7 @@
 use super::{app::*, keys::Action, testutil::{harness, harness_with_failing_send}};
 use crate::backend::Envelope;
-use ratatui::crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
+use ratatui::layout::Rect;
 
 fn env(id: &str) -> Envelope {
     Envelope { id: id.into(), subject: "s".into(), from: "f".into(), date: "2020-01-01T00:00:00Z".into(), seen: false, flagged: false }
@@ -204,4 +205,27 @@ fn search_runs_the_search_template() {
     h.settle();
     assert_eq!(h.app.query.as_deref(), Some("ada"));
     assert!(std::fs::read_to_string(h.dir.path().join("argv.log")).unwrap().contains("list Inbox ada"));
+}
+
+#[test]
+fn click_selects_and_double_click_opens() {
+    use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let mut h = harness().started();
+    h.app.rects = vec![(Pane::List, Rect::new(0, 0, 60, 10))];
+    let click = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: 5, row: 2, modifiers: KeyModifiers::NONE };
+    h.app.update(Msg::Input(Event::Mouse(click)));
+    assert_eq!((h.app.focus, h.app.list_sel), (Pane::List, 1));
+    h.app.update(Msg::Input(Event::Mouse(click)));
+    assert_eq!(h.app.reading.as_ref().map(|r| r.0.as_str()), Some("2"));
+}
+
+#[test]
+fn repaint_reloads_auto_theme_only() {
+    let mut h = harness();
+    h.app.update(Msg::Repaint);
+    assert_eq!(h.app.theme_name, "tokyo-night", "a fixed theme ignores Omarchy");
+    h.app.set_theme("auto");
+    h.app.update(Msg::Repaint);
+    assert_eq!(h.app.theme_name, "auto");
+    assert!(h.app.status.is_none());
 }
