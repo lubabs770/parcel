@@ -4,3 +4,4 @@ pub mod config;
 pub mod doctor;
 pub mod theme;
 pub mod tui;
+pub mod upgrade;

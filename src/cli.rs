@@ -55,6 +55,11 @@ pub enum Cmd {
     /// Omarchy integration
     #[command(subcommand)]
     Omarchy(OmarchyCmd),
+    /// Upgrade to the latest release (or just --check)
+    Upgrade {
+        #[arg(long)]
+        check: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -98,6 +103,7 @@ pub fn run(cli: Cli) -> Result<(), String> {
             return Ok(());
         }
         Cmd::Doctor => return crate::doctor::run(),
+        Cmd::Upgrade { check } => return crate::upgrade::run(*check),
         Cmd::Omarchy(OmarchyCmd::Hook(h)) => {
             let p = crate::theme::omarchy::hook_path();
             let changed = match h {
