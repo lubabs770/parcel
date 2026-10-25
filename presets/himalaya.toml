@@ -1,0 +1,26 @@
+# parcel backend: himalaya 2.x. Each action is a command template; {x} fills
+# one argument, {x...} splits on spaces. Leave an action out to disable its key.
+mailboxes = "himalaya --json mailbox list"
+list      = "himalaya --json envelope list -m {mailbox} -p {page} -s {size}"
+search    = "himalaya --json envelope search -m {mailbox} -p {page} -s {size} subject {query} or from {query}"
+read      = "himalaya message read -m {mailbox} {id}"
+flag      = "himalaya flag add -m {mailbox} -f {flag} {id}"
+unflag    = "himalaya flag remove -m {mailbox} -f {flag} {id}"
+move      = "himalaya message move -f {mailbox} -t {target} {id}"
+delete    = "himalaya message delete -m {mailbox} {id}"
+send      = "himalaya message send"
+reply     = "himalaya message reply -m {mailbox} {id}"
+forward   = "himalaya message forward -m {mailbox} {id}"
+seen_flag    = "seen"
+flagged_flag = "flagged"
+
+[fields]
+items         = "envelopes"
+id            = "id"
+subject       = "subject"
+from          = "from.0.name|from.0.email"
+date          = "date"
+flags         = "flags"
+flag_name     = "iana|raw"
+mailbox_items = "mailboxes"
+mailbox_name  = "name"

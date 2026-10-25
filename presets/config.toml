@@ -1,0 +1,6 @@
+# parcel — main settings. Every key is optional; these are the defaults.
+backend   = "himalaya"  # backends/<name>.toml, or a built-in preset
+theme     = "auto"      # "auto" follows Omarchy, else tokyo-night; or any theme name
+page_size = 50
+inbox     = "inbox"     # mailbox opened at start
+archive   = "Archive"   # where the archive key moves mail
