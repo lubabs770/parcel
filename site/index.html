@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>parcel · terminal mail</title>
+<meta name="description" content="A light, fast, yummy terminal mail client for any email CLI.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><img src="favicon.svg" alt="">parcel</a>
+  <nav><a href="docs.html">Docs</a><a href="https://github.com/lubabs770/parcel">GitHub</a></nav>
+</div></header>
+
+<main class="wrap">
+<section class="hero">
+  <span class="tag">terminal mail · any email CLI</span>
+  <h1>Your inbox, <em>neatly wrapped.</em></h1>
+  <p class="lede">A light, fast, yummy terminal mail client. It drives himalaya out of the box, or any email CLI you point it at.</p>
+  <div class="install">
+    <span class="ps">$</span><code>curl -fsSL https://raw.githubusercontent.com/lubabs770/parcel/main/install.sh | sh</code>
+    <button class="copy" type="button">copy</button>
+  </div>
+  <p class="needs">macOS &amp; Linux, checksum-verified · needs an email CLI, by default <a href="https://github.com/pimalaya/himalaya">himalaya</a></p>
+
+  <div class="stage">
+    <div class="term" role="img" aria-label="The parcel TUI: mailboxes, message list and reader side by side, with a status bar">
+      <div class="chrome"><i></i><i></i><i></i><span>parcel</span></div>
+      <div class="scroller">
+        <div class="screen">
+          <div class="pane mb">
+            <span class="pt"> mailboxes </span>
+            <div class="row"><b>▌</b><span class="cur">Inbox</span></div>
+            <div class="row"> Archive</div>
+            <div class="row"> Drafts</div>
+            <div class="row"> Sent</div>
+            <div class="row"> Trash</div>
+          </div>
+          <div class="pane ls focus">
+            <span class="pt"> Inbox · 50+ </span>
+            <div class="row new sel"><span class="mk u">●</span><span class="av c-accent">M</span><span class="fr">Mira Chen</span><span class="sj">Dinner on Thursday?</span><span class="dt">now</span></div>
+            <div class="row new"><span class="mk u">●</span><span class="av c-unread">O</span><span class="fr">Omarchy</span><span class="sj">Your theme, but warmer</span><span class="dt">5m</span></div>
+            <div class="row"><span class="mk f">⚑</span><span class="av c-flagged">H</span><span class="fr">Hacker News</span><span class="sj">Ask HN: what's in your dotfiles these days?</span><span class="dt">2h</span></div>
+            <div class="row new"><span class="mk u">●</span><span class="av c-unread">S</span><span class="fr">Stripe</span><span class="sj">Your receipt from the bakery</span><span class="dt">Fri</span></div>
+            <div class="row"><span class="mk"> </span><span class="av c-danger">G</span><span class="fr">GitHub</span><span class="sj">[parcel] CI passed on main</span><span class="dt">Thu</span></div>
+            <div class="row"><span class="mk"> </span><span class="av c-ok">K</span><span class="fr">Keychron</span><span class="sj">Review your keyboard</span><span class="dt">Wed</span></div>
+            <div class="row"><span class="mk f">⚑</span><span class="av c-flagged">E</span><span class="fr">Eli</span><span class="sj">Re: moving day</span><span class="dt">Oct 3</span></div>
+            <div class="row"><span class="mk"> </span><span class="av c-accent">P</span><span class="fr">Pimalaya</span><span class="sj">himalaya v2.1.0</span><span class="dt">Sep 12</span></div>
+            <div class="row"><span class="mk"> </span><span class="av c-ok">J</span><span class="fr">Jonah Park</span><span class="sj">photos from the trip</span><span class="dt">2024</span></div>
+          </div>
+          <div class="pane rd"><span class="pt"> reading </span><span class="k">From  </span><b>Mira Chen</b>
+<span class="k">Subj  </span><span class="s">Dinner on Thursday?</span>
+
+Hey!
+
+The noodle place on 5th reopened.
+Thursday at 7? I'll book a table.
+
+<span class="q">&gt; are we still on for this week?</span>
+<span class="q">&gt; I can do any evening but Wed.</span>
+
+— M</div>
+        </div>
+        <div class="status"><span>   <span class="okm">sent ✓</span></span><span class="r">himalaya · <span id="tn">tokyo-night</span>   ? help · q quit </span></div>
+      </div>
+    </div>
+    <div class="chips" role="group" aria-label="Theme">
+      <button type="button" data-pick="tokyo-night" data-t="tokyo-night" aria-pressed="true"><i></i>tokyo-night</button>
+      <button type="button" data-pick="catppuccin" data-t="catppuccin" aria-pressed="false"><i></i>catppuccin</button>
+      <button type="button" data-pick="gruvbox" data-t="gruvbox" aria-pressed="false"><i></i>gruvbox</button>
+      <button type="button" data-pick="rose-pine" data-t="rose-pine" aria-pressed="false"><i></i>rose-pine</button>
+      <button type="button" data-pick="nord" data-t="nord" aria-pressed="false"><i></i>nord</button>
+      <button type="button" data-pick="everforest" data-t="everforest" aria-pressed="false"><i></i>everforest</button>
+      <button type="button" data-pick="kanagawa" data-t="kanagawa" aria-pressed="false"><i></i>kanagawa</button>
+      <button type="button" data-pick="latte" data-t="latte" aria-pressed="false"><i></i>latte</button>
+    </div>
+    <p class="hint">The 8 built-in palettes, exact hex. Press <kbd>t</kbd> to cycle, like the theme picker in parcel.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="eyebrow">What's in the box</div>
+  <h2>Small parcel. Lots inside.</h2>
+  <p class="intro">No daemon, no index, no lock-in. parcel is a fast front end for the email CLI you already trust.</p>
+  <div class="stamps">
+    <article class="stamp" style="--c:var(--accent)"><div><span class="ic">⇄</span><span class="val">ANY CLI</span>
+      <h3>Drives any email CLI</h3><p>himalaya ships built in. Point parcel at another CLI with a few command templates and a JSON field map.</p></div></article>
+    <article class="stamp" style="--c:var(--flagged)"><div><span class="ic">ϟ</span><span class="val">NO DAEMON</span>
+      <h3>Starts instantly</h3><p>No daemon, no index. It opens, asks the backend for your inbox, and gets out of the way.</p></div></article>
+    <article class="stamp" style="--c:var(--unread)"><div><span class="ic">◐</span><span class="val">LIVE</span>
+      <h3>Omarchy live theme</h3><p>Follows your system theme and repaints the moment it changes. Or pick from 8 built-ins, or your own.</p></div></article>
+    <article class="stamp" style="--c:var(--ok)"><div><span class="ic">✓</span><span class="val">OPTIMISTIC</span>
+      <h3>Optimistic triage</h3><p>Star, archive, move and delete update the screen immediately. The backend call happens after, and a failure puts the message back.</p></div></article>
+    <article class="stamp" style="--c:var(--danger)"><div><span class="ic">✎</span><span class="val">$EDITOR</span>
+      <h3>Write in your editor</h3><p>Compose, reply and forward hand off to <code>$EDITOR</code>. Close it, then send, edit again or discard.</p></div></article>
+    <article class="stamp" style="--c:var(--accent)"><div><span class="ic">{}</span><span class="val">--JSON</span>
+      <h3>Scriptable</h3><p>Every TUI action is also a command. Add <code>--json</code> for machine-readable output.</p></div></article>
+  </div>
+  <div class="cta">
+    <a class="btn go" href="docs.html">Read the docs</a>
+    <a class="btn" href="https://github.com/lubabs770/parcel">★ GitHub</a>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap"><span>parcel · terminal mail for any email CLI</span><span><a href="docs.html">Docs</a> · <a href="https://github.com/lubabs770/parcel">GitHub</a> · <a href="https://github.com/lubabs770/parcel/releases">Releases</a></span></div></footer>
+<script src="app.js"></script>
+</body>
+</html>

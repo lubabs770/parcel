@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>parcel docs</title>
+<meta name="description" content="Install, keys, config, backends, themes, Omarchy and the CLI for parcel, the terminal mail client.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><img src="favicon.svg" alt="">parcel</a>
+  <nav><a href="docs.html" aria-current="page">Docs</a><a href="https://github.com/lubabs770/parcel">GitHub</a></nav>
+</div></header>
+
+<div class="wrap docs">
+<nav class="toc" aria-label="On this page">
+  <a href="#install">Install &amp; upgrade</a>
+  <a href="#tui">The TUI</a>
+  <a href="#config">Config directory</a>
+  <a href="#backends">Backends</a>
+  <a href="#themes">Themes</a>
+  <a href="#omarchy">Omarchy</a>
+  <a href="#cli">CLI reference</a>
+  <a href="#troubleshooting">Troubleshooting</a>
+</nav>
+
+<main class="doc">
+<section id="install">
+  <h2><a href="#install">Install &amp; upgrade</a></h2>
+  <div class="code"><pre><code>curl -fsSL https://raw.githubusercontent.com/lubabs770/parcel/main/install.sh | sh</code></pre><button class="copy" type="button">copy</button></div>
+  <p>The installer picks the right binary for your OS and architecture (macOS on Apple silicon or Intel, Linux on x86_64 or aarch64), downloads it with the release's <code>checksums.txt</code>, and refuses to continue unless the sha256 matches. It then test-runs the binary and installs it to <code>~/.local/bin</code> atomically: it writes a temporary file and renames it into place, so a running <code>parcel</code> is never half-overwritten.</p>
+  <ul>
+    <li><code>BIN_DIR=/some/dir ... | sh</code> installs somewhere else.</li>
+    <li><code>VERSION=v0.1.0 ... | sh</code> pins a release instead of the latest.</li>
+    <li>On any other platform, build it: <code>cargo install --git https://github.com/lubabs770/parcel</code>.</li>
+  </ul>
+  <h3>Upgrading</h3>
+  <p><code>parcel upgrade</code> asks GitHub for the latest release and, if it's newer, re-runs the installer into the directory the running binary lives in, with the same checksum check. <code>parcel upgrade --check</code> only tells you whether a newer release exists.</p>
+  <div class="note"><p>parcel drives an email CLI, so you need one installed and configured first. The default backend is <a href="https://github.com/pimalaya/himalaya">himalaya</a> (2.x); any other CLI works with a <a href="#backends">backend file</a>.</p></div>
+</section>
+
+<section id="tui">
+  <h2><a href="#tui">The TUI</a></h2>
+  <p>Run <code>parcel</code> with no arguments. Every key below is rebindable in <code>keys.toml</code> by the name in the last column.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Key</th><th>Action</th><th>keys.toml</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>k</kbd></td><td>move up</td><td><code>up</code></td></tr>
+      <tr><td><kbd>j</kbd></td><td>move down</td><td><code>down</code></td></tr>
+      <tr><td><kbd>g</kbd></td><td>top</td><td><code>top</code></td></tr>
+      <tr><td><kbd>G</kbd></td><td>bottom</td><td><code>bottom</code></td></tr>
+      <tr><td><kbd>enter</kbd></td><td>open</td><td><code>open</code></td></tr>
+      <tr><td><kbd>esc</kbd></td><td>back</td><td><code>back</code></td></tr>
+      <tr><td><kbd>tab</kbd></td><td>next pane</td><td><code>next_pane</code></td></tr>
+      <tr><td><kbd>/</kbd></td><td>search</td><td><code>search</code></td></tr>
+      <tr><td><kbd>r</kbd></td><td>reply</td><td><code>reply</code></td></tr>
+      <tr><td><kbd>R</kbd></td><td>reply all</td><td><code>reply_all</code></td></tr>
+      <tr><td><kbd>f</kbd></td><td>forward</td><td><code>forward</code></td></tr>
+      <tr><td><kbd>c</kbd></td><td>compose</td><td><code>compose</code></td></tr>
+      <tr><td><kbd>s</kbd></td><td>star</td><td><code>star</code></td></tr>
+      <tr><td><kbd>u</kbd></td><td>toggle read</td><td><code>toggle_read</code></td></tr>
+      <tr><td><kbd>d</kbd></td><td>delete</td><td><code>delete</code></td></tr>
+      <tr><td><kbd>m</kbd></td><td>move to…</td><td><code>move</code></td></tr>
+      <tr><td><kbd>a</kbd></td><td>archive</td><td><code>archive</code></td></tr>
+      <tr><td><kbd>ctrl+p</kbd></td><td>command palette</td><td><code>palette</code></td></tr>
+      <tr><td><kbd>t</kbd></td><td>themes</td><td><code>themes</code></td></tr>
+      <tr><td><kbd>?</kbd></td><td>help</td><td><code>help</code></td></tr>
+      <tr><td><kbd>q</kbd></td><td>quit</td><td><code>quit</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>The arrow keys, <kbd>Home</kbd> and <kbd>End</kbd> always move, whatever you rebind.</p>
+
+  <h3>Panes and narrow mode</h3>
+  <p>At 100 columns or wider you get three panes side by side: mailboxes, the message list, and the reader. Narrower than that, parcel shows only the focused pane. <kbd>tab</kbd> moves focus from mailboxes to the list to the reader (once a message is open) and back round. <kbd>esc</kbd> steps back: reader to list, list to mailboxes. If a search is active, <kbd>esc</kbd> in the list clears it first.</p>
+  <p>In the list, <span style="color:var(--unread)">●</span> marks unread mail and <span style="color:var(--flagged)">⚑</span> starred mail. Each sender gets a coloured initial chip, and dates are relative: <code>now</code>, <code>5m</code>, <code>2h</code>, a weekday within the last six days, then <code>Oct 3</code>, then the year. The status bar shows a spinner while the backend works, the latest message on the left, and the backend and theme name on the right.</p>
+
+  <h3>Mouse</h3>
+  <p>Scroll a pane, click to select, double-click to open.</p>
+
+  <h3>Search, pickers and the palette</h3>
+  <ul>
+    <li><kbd>/</kbd> opens a search prompt in the status bar. <kbd>enter</kbd> searches the current mailbox; <kbd>esc</kbd> cancels. With himalaya, a query matches the subject or the sender.</li>
+    <li><kbd>m</kbd> opens a picker of the other mailboxes to move the message to. <kbd>a</kbd> moves it straight to your <code>archive</code> mailbox.</li>
+    <li><kbd>ctrl+p</kbd> opens the command palette: every action by name, plus <code>go to &lt;mailbox&gt;</code>.</li>
+    <li><kbd>t</kbd> opens the theme picker. The screen repaints as you move through it; <kbd>enter</kbd> keeps the theme for this session, <kbd>esc</kbd> puts the old one back. To make it stick, set <code>theme</code> in <code>config.toml</code>.</li>
+  </ul>
+  <p>Pickers filter as you type. <kbd>↑</kbd>/<kbd>↓</kbd>, <kbd>tab</kbd>/<kbd>shift+tab</kbd>, <kbd>ctrl+p</kbd>/<kbd>ctrl+n</kbd> and <kbd>ctrl+k</kbd>/<kbd>ctrl+j</kbd> move the selection.</p>
+
+  <h3>Triage</h3>
+  <p>Star, toggle read, archive, move and delete change the screen immediately; the backend call runs afterwards. If it fails, the change is undone and the error shows in the status bar.</p>
+
+  <h3>Compose, reply, forward</h3>
+  <p><kbd>c</kbd>, <kbd>r</kbd>, <kbd>R</kbd> and <kbd>f</kbd> open a draft in <code>$EDITOR</code>. Reply and forward drafts come from the backend; a new message starts from the backend's <code>compose</code> template, or from a blank <code>To:</code> / <code>Cc:</code> / <code>Subject:</code> header if there isn't one. When the editor closes, the status bar asks:</p>
+  <pre><code>s send · e edit · d discard</code></pre>
+  <p><kbd>esc</kbd> leaves the prompt and keeps the draft on disk, and the status bar shows where it is.</p>
+  <p>An action whose backend template is missing is refused, and the help sheet shows it dimmed. The himalaya preset has no <code>reply_all</code>, because himalaya 2.x has no reply-all, so <kbd>R</kbd> is off there.</p>
+</section>
+
+<section id="config">
+  <h2><a href="#config">Config directory</a></h2>
+<pre><code>~/.config/parcel/
+├── config.toml           <span class="c"># backend, theme, page_size, inbox, archive</span>
+├── keys.toml             <span class="c"># key overrides</span>
+├── backends/
+│   └── himalaya.toml     <span class="c"># command templates for the himalaya backend</span>
+└── themes/
+    └── &lt;name&gt;.toml       <span class="c"># your own themes</span></code></pre>
+  <p><code>parcel config init</code> writes the default <code>config.toml</code>, <code>keys.toml</code> and <code>backends/himalaya.toml</code> for editing. It never overwrites a file that already exists. <code>parcel config path</code> prints the directory. It honours <code>$XDG_CONFIG_HOME</code> (on macOS too), and <code>$PARCEL_CONFIG_DIR</code> overrides it.</p>
+  <p>Nothing here is required. The himalaya preset is built in, so you need no file until you want to change something.</p>
+
+  <h3>config.toml</h3>
+  <div class="code"><pre><code>backend   = "himalaya"  <span class="c"># backends/&lt;name&gt;.toml, or a built-in preset</span>
+theme     = "auto"      <span class="c"># "auto" follows Omarchy, else tokyo-night; or any theme name</span>
+page_size = 50
+inbox     = "inbox"     <span class="c"># mailbox opened at start</span>
+archive   = "Archive"   <span class="c"># where the archive key moves mail</span></code></pre><button class="copy" type="button">copy</button></div>
+  <p>Every key is optional, and these are the defaults. <code>page_size</code> fills the <code>{size}</code> placeholder.</p>
+
+  <h3>keys.toml</h3>
+  <p>One <code>name = "key"</code> line per action you want to rebind, using the names in the <a href="#tui">key table</a>. An override replaces that action's default key and wins any clash. An unknown action name is an error.</p>
+  <div class="code"><pre><code>star    = "x"
+palette = "ctrl+k"</code></pre><button class="copy" type="button">copy</button></div>
+  <p>Keys are written <code>"x"</code>, <code>"X"</code>, <code>"ctrl+x"</code>, <code>"alt+x"</code>, or one of <code>enter</code> <code>esc</code> <code>tab</code> <code>backtab</code> <code>space</code> <code>up</code> <code>down</code> <code>left</code> <code>right</code> <code>home</code> <code>end</code> <code>pgup</code> <code>pgdown</code> <code>backspace</code> <code>delete</code>.</p>
+
+  <h3>backends/&lt;name&gt;.toml and themes/&lt;name&gt;.toml</h3>
+  <p>See <a href="#backends">Backends</a> and <a href="#themes">Themes</a>.</p>
+</section>
+
+<section id="backends">
+  <h2><a href="#backends">Backends</a></h2>
+  <p>A backend is any email CLI, described by one command template per action and a <code>[fields]</code> table that maps its JSON onto parcel's envelope. Here is the built-in himalaya preset, verbatim:</p>
+  <div class="code"><pre><code><span class="c"># parcel backend: himalaya 2.x. Each action is a command template; {x} fills
+# one argument, {x...} splits on spaces. Leave an action out to disable its key.</span>
+mailboxes = "himalaya --json mailbox list"
+list      = "himalaya --json envelope list -m {mailbox} -p {page} -s {size}"
+search    = "himalaya --json envelope search -m {mailbox} -p {page} -s {size} subject {query} or from {query}"
+read      = "himalaya message read -m {mailbox} {id}"
+flag      = "himalaya flag add -m {mailbox} -f {flag} {id}"
+unflag    = "himalaya flag remove -m {mailbox} -f {flag} {id}"
+move      = "himalaya message move -f {mailbox} -t {target} {id}"
+delete    = "himalaya message delete -m {mailbox} {id}"
+send      = "himalaya message send"
+reply     = "himalaya message reply -m {mailbox} {id}"
+forward   = "himalaya message forward -m {mailbox} {id}"
+seen_flag    = "seen"
+flagged_flag = "flagged"
+
+[fields]
+items         = "envelopes"
+id            = "id"
+subject       = "subject"
+from          = "from.0.name|from.0.email"
+date          = "date"
+flags         = "flags"
+flag_name     = "iana|raw"
+mailbox_items = "mailboxes"
+mailbox_name  = "name"</code></pre><button class="copy" type="button">copy</button></div>
+  <p>A <code>backends/himalaya.toml</code> of your own is layered over the preset: keys you set win, keys you leave out keep the preset's value.</p>
+
+  <h3>Actions</h3>
+  <p><code>mailboxes</code> <code>list</code> <code>search</code> <code>read</code> <code>flag</code> <code>unflag</code> <code>move</code> <code>delete</code> <code>send</code> <code>compose</code> <code>reply</code> <code>reply_all</code> <code>forward</code>. Leave one out to disable its key. <code>send</code> gets the message on stdin; <code>compose</code>, <code>reply</code>, <code>reply_all</code> and <code>forward</code> print the draft to open in your editor. <code>seen_flag</code> and <code>flagged_flag</code> are the flag names passed as <code>{flag}</code>.</p>
+
+  <h3>Placeholders</h3>
+  <p><code>{mailbox}</code> <code>{id}</code> <code>{page}</code> <code>{size}</code> <code>{query}</code> <code>{flag}</code> <code>{target}</code>. No shell is ever involved: the template is split on whitespace first, then each placeholder is filled inside its own argument, so a value with spaces or shell characters stays one argument. Write <code>{name...}</code> to split the value on whitespace into several arguments instead. A word that is just a placeholder with an empty value is dropped.</p>
+
+  <h3>[fields]</h3>
+  <p>Each field is a dot path into the CLI's JSON output. Numeric segments index arrays (<code>from.0.name</code>), and <code>a|b</code> tries each alternative in turn, taking the first that is neither null nor empty. The empty path <code>""</code> means the value itself, for a CLI that prints a bare array.</p>
+
+  <h3>Adding another CLI</h3>
+  <p>Set <code>backend</code> in <code>config.toml</code> and write <code>backends/&lt;name&gt;.toml</code>:</p>
+  <div class="code"><pre><code><span class="c"># ~/.config/parcel/config.toml</span>
+backend = "mycli"
+
+<span class="c"># ~/.config/parcel/backends/mycli.toml</span>
+mailboxes = "mycli folders --json"
+list      = "mycli ls --folder {mailbox} --page {page} --json"
+read      = "mycli show {id}"
+[fields]
+items = ""           <span class="c"># output is a bare array</span>
+id = "uid"
+subject = "subject"
+from = "sender"
+date = "date"
+flags = "flags"
+mailbox_items = ""
+mailbox_name = "name"</code></pre><button class="copy" type="button">copy</button></div>
+  <p>Then run <code>parcel doctor</code> to check every command is on your <code>$PATH</code> and mailboxes load.</p>
+</section>
+
+<section id="themes">
+  <h2><a href="#themes">Themes</a></h2>
+  <p>Eight are built in: <code>tokyo-night</code> <code>catppuccin</code> <code>gruvbox</code> <code>rose-pine</code> <code>nord</code> <code>everforest</code> <code>kanagawa</code> <code>latte</code>. You can <a href="./">try them on the home page</a>. The default, <code>auto</code>, follows Omarchy and falls back to tokyo-night.</p>
+  <p>For your own, drop a <code>themes/&lt;name&gt;.toml</code> in the config directory with all 12 tokens as hex, then set <code>theme = "&lt;name&gt;"</code> or pick it with <kbd>t</kbd>. This is tokyo-night written out:</p>
+  <div class="code"><pre><code>bg        = "#1a1b26"  <span class="c"># the screen behind the panes</span>
+surface   = "#16161e"  <span class="c"># panes and the status bar</span>
+overlay   = "#292e42"  <span class="c"># the list highlight when it isn't focused</span>
+fg        = "#c0caf5"
+muted     = "#565f89"
+accent    = "#7aa2f7"
+unread    = "#7dcfff"
+flagged   = "#e0af68"
+danger    = "#f7768e"
+ok        = "#9ece6a"
+selection = "#283457"
+border    = "#3b4261"</code></pre><button class="copy" type="button">copy</button></div>
+  <p>Colours are <code>"#rrggbb"</code> or <code>"0xrrggbb"</code>.</p>
+</section>
+
+<section id="omarchy">
+  <h2><a href="#omarchy">Omarchy</a></h2>
+  <p>With <code>theme = "auto"</code> (the default), parcel follows the active <a href="https://omarchy.org">Omarchy</a> theme. It reads the theme's <code>colors.toml</code>, or <code>alacritty.toml</code> for older themes, from <code>~/.local/state/omarchy/current/theme</code> or <code>~/.config/omarchy/current/theme</code>, and derives any colour layer the palette doesn't define from its background.</p>
+  <div class="code"><pre><code>parcel omarchy hook install</code></pre><button class="copy" type="button">copy</button></div>
+  <p>This adds one line to Omarchy's <code>~/.config/omarchy/hooks/theme-set</code> hook, which signals running parcels to repaint the instant the theme changes. Without the hook, parcel still notices within about a second by polling; the hook just makes it immediate. <code>parcel omarchy hook uninstall</code> removes the line and leaves the rest of the hook alone. Both are safe to run twice.</p>
+</section>
+
+<section id="cli">
+  <h2><a href="#cli">CLI reference</a></h2>
+  <p>Every TUI action is also a command. <code>--json</code> works with every command and makes the data-producing ones print machine-readable JSON.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>parcel</code></td><td>Open the TUI</td></tr>
+      <tr><td><code>parcel mailboxes</code></td><td>List mailboxes</td></tr>
+      <tr><td><code>parcel list [-m MAILBOX] [-p PAGE]</code></td><td>List envelopes in a mailbox (default: your <code>inbox</code>, page 1)</td></tr>
+      <tr><td><code>parcel search QUERY [-m MAILBOX] [-p PAGE]</code></td><td>Search a mailbox</td></tr>
+      <tr><td><code>parcel read ID [-m MAILBOX]</code></td><td>Print a message</td></tr>
+      <tr><td><code>parcel send [FILE]</code></td><td>Send a raw RFC 5322 message from a file, or from stdin</td></tr>
+      <tr><td><code>parcel doctor</code></td><td>Check the backend, its templates and the theme setup</td></tr>
+      <tr><td><code>parcel log [-n LINES]</code></td><td>Show the end of the error log (default: 40 lines)</td></tr>
+      <tr><td><code>parcel config init</code></td><td>Write the default config files (never overwrites)</td></tr>
+      <tr><td><code>parcel config path</code></td><td>Print the config directory</td></tr>
+      <tr><td><code>parcel omarchy hook install|uninstall</code></td><td>Repaint running parcels instantly on an Omarchy theme change</td></tr>
+      <tr><td><code>parcel upgrade [--check]</code></td><td>Upgrade to the latest release (or just check)</td></tr>
+    </tbody>
+  </table></div>
+  <p>The long forms are <code>--mailbox</code>, <code>--page</code> and <code>--lines</code>. <code>parcel --version</code> prints the version.</p>
+  <div class="code"><pre><code>parcel list --json | jq -r '.[] | select(.seen | not) | .subject'</code></pre><button class="copy" type="button">copy</button></div>
+  <p>Each envelope in <code>--json</code> output has <code>id</code>, <code>subject</code>, <code>from</code>, <code>date</code>, <code>seen</code> and <code>flagged</code>.</p>
+</section>
+
+<section id="troubleshooting">
+  <h2><a href="#troubleshooting">Troubleshooting</a></h2>
+  <h3>Start with the doctor</h3>
+  <div class="code"><pre><code>parcel doctor</code></pre><button class="copy" type="button">copy</button></div>
+  <p>It checks that the config loads, that every configured backend command is on your <code>$PATH</code>, that mailboxes actually load, and whether Omarchy and its hook are set up. Each line is <code>✓</code> (fine), <code>✗</code> (a problem) or <code>·</code> (not configured, which is fine). With himalaya, <code>compose</code> and <code>reply_all</code> show <code>·</code>.</p>
+
+  <h3>Read the log</h3>
+  <p>Every failed backend call is recorded with its command and stderr, even when the TUI only shows a short status-bar message. <code>parcel log</code> prints the last 40 lines; <code>parcel log -n 200</code> prints more. The log lives in <code>~/.local/state/parcel/parcel.log</code> (<code>$XDG_STATE_HOME</code>, or <code>$PARCEL_STATE_DIR</code>, if set).</p>
+
+  <h3>himalaya can't reach the macOS keychain</h3>
+  <p>This happens when parcel is launched from a session without keychain access, such as a detached tmux or a headless or SSH session. The backend error shows up in the status bar; run <code>parcel log</code> for the full command and stderr.</p>
+
+  <h3>A key does nothing</h3>
+  <p>Its action probably has no template in your backend. The status bar says so, and <kbd>?</kbd> shows it dimmed.</p>
+</section>
+</main>
+</div>
+
+<footer><div class="wrap"><span>parcel · terminal mail for any email CLI</span><span><a href="./">Home</a> · <a href="https://github.com/lubabs770/parcel">GitHub</a> · <a href="https://github.com/lubabs770/parcel/releases">Releases</a></span></div></footer>
+<script src="app.js"></script>
+</body>
+</html>
