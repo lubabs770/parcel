@@ -1,0 +1,28 @@
+---
+source: src/tui/view.rs
+expression: screen
+---
+" Inbox · 3                                                                      "
+" ●  A  Amazon.com       Ordered 1 item: Furniture                            2h "
+"    K  Keychron         Review your keyboard                                Wed "
+" ⚑  L  Linear           ENG-3039 merged                                   Oct 3 "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                           fake · tokyo-night   ? help · q quit "

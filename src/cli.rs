@@ -2,7 +2,7 @@
 
 use crate::backend::{Backend, Envelope, exec};
 use crate::config::{self, Config};
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use std::{io::Read, path::PathBuf};
 
 #[derive(Parser)]
@@ -79,10 +79,7 @@ pub enum HookCmd {
 }
 
 pub fn run(cli: Cli) -> Result<(), String> {
-    let Some(cmd) = cli.cmd else {
-        Cli::command().print_help().map_err(|e| e.to_string())?; // Task 9 replaces this with the TUI
-        return Ok(());
-    };
+    let Some(cmd) = cli.cmd else { return crate::tui::run(Config::load()?) };
     match &cmd {
         Cmd::Config(ConfigCmd::Init) => {
             for p in config::init(&config::config_dir())? {
