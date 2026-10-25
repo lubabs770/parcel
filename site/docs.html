@@ -107,7 +107,7 @@
 │   └── himalaya.toml     <span class="c"># command templates for the himalaya backend</span>
 └── themes/
     └── &lt;name&gt;.toml       <span class="c"># your own themes</span></code></pre>
-  <p><code>parcel config init</code> writes the default <code>config.toml</code>, <code>keys.toml</code> and <code>backends/himalaya.toml</code> for editing. It never overwrites a file that already exists. <code>parcel config path</code> prints the directory. It honours <code>$XDG_CONFIG_HOME</code> (on macOS too), and <code>$PARCEL_CONFIG_DIR</code> overrides it.</p>
+  <p><code>parcel config init</code> writes the default <code>config.toml</code>, <code>keys.toml</code> and <code>backends/himalaya.toml</code> for editing. It never overwrites a file that already exists. <code>backends/himalaya.toml</code> is written fully commented out: uncomment only the lines you want to override, and the rest keeps following the built-in preset. <code>parcel config path</code> prints the directory. It honours <code>$XDG_CONFIG_HOME</code> (on macOS too), and <code>$PARCEL_CONFIG_DIR</code> overrides it.</p>
   <p>Nothing here is required. The himalaya preset is built in, so you need no file until you want to change something.</p>
 
   <h3>config.toml</h3>
@@ -135,13 +135,14 @@ palette = "ctrl+k"</code></pre><button class="copy" type="button">copy</button><
 # one argument, {x...} splits on spaces. Leave an action out to disable its key.</span>
 mailboxes = "himalaya --json mailbox list"
 list      = "himalaya --json envelope list -m {mailbox} -p {page} -s {size}"
-search    = "himalaya --json envelope search -m {mailbox} -p {page} -s {size} subject {query} or from {query}"
+search    = 'himalaya --json envelope search -m {mailbox} -p {page} -s {size} subject "{query}" or from "{query}"'
 read      = "himalaya message read -m {mailbox} {id}"
 flag      = "himalaya flag add -m {mailbox} -f {flag} {id}"
 unflag    = "himalaya flag remove -m {mailbox} -f {flag} {id}"
 move      = "himalaya message move -f {mailbox} -t {target} {id}"
 delete    = "himalaya message delete -m {mailbox} {id}"
 send      = "himalaya message send"
+compose   = "himalaya message compose --to= --subject="
 reply     = "himalaya message reply -m {mailbox} {id}"
 forward   = "himalaya message forward -m {mailbox} {id}"
 seen_flag    = "seen"
@@ -244,7 +245,7 @@ border    = "#3b4261"</code></pre><button class="copy" type="button">copy</butto
   <h2><a href="#troubleshooting">Troubleshooting</a></h2>
   <h3>Start with the doctor</h3>
   <div class="code"><pre><code>parcel doctor</code></pre><button class="copy" type="button">copy</button></div>
-  <p>It checks that the config loads, that every configured backend command is on your <code>$PATH</code>, that mailboxes actually load, and whether Omarchy and its hook are set up. Each line is <code>✓</code> (fine), <code>✗</code> (a problem) or <code>·</code> (not configured, which is fine). With himalaya, <code>compose</code> and <code>reply_all</code> show <code>·</code>.</p>
+  <p>It checks that the config loads, that every configured backend command is on your <code>$PATH</code>, that mailboxes actually load, and whether Omarchy and its hook are set up. Each line is <code>✓</code> (fine), <code>✗</code> (a problem) or <code>·</code> (not configured, which is fine). With himalaya, <code>reply_all</code> shows <code>·</code>.</p>
 
   <h3>Read the log</h3>
   <p>Every failed backend call is recorded with its command and stderr, even when the TUI only shows a short status-bar message. <code>parcel log</code> prints the last 40 lines; <code>parcel log -n 200</code> prints more. The log lives in <code>~/.local/state/parcel/parcel.log</code> (<code>$XDG_STATE_HOME</code>, or <code>$PARCEL_STATE_DIR</code>, if set).</p>

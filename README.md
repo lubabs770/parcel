@@ -68,7 +68,9 @@ Every key is rebindable — see Config below.
 ```
 
 `parcel config init` writes the defaults above for editing (never overwrites
-an existing file). `parcel config path` prints the config directory.
+an existing file). `backends/himalaya.toml` is written fully commented out:
+uncomment only the lines you want to override, so the rest keeps following the
+built-in preset. `parcel config path` prints the config directory.
 
 The himalaya preset is built in — no file needed until you want to change it.
 Every key in `config.toml` is optional; the defaults are `backend = "himalaya"`,

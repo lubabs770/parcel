@@ -18,7 +18,7 @@ pub struct Settings {
     pub archive: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct Fields {
     pub items: String,
@@ -32,7 +32,7 @@ pub struct Fields {
     pub mailbox_name: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct BackendSpec {
     pub mailboxes: Option<String>,
@@ -52,6 +52,30 @@ pub struct BackendSpec {
     pub seen_flag: String,
     pub flagged_flag: String,
     pub fields: Fields,
+}
+
+// Hand-written so a custom backend that never mentions flags still reads them
+// ("seen"/"flagged" as plain strings or `{name = ...}` objects).
+impl Default for Fields {
+    fn default() -> Self {
+        let e = String::new;
+        Self {
+            items: e(), id: e(), subject: e(), from: e(), date: e(), flags: e(),
+            flag_name: "name".into(), mailbox_items: e(), mailbox_name: e(),
+        }
+    }
+}
+
+impl Default for BackendSpec {
+    fn default() -> Self {
+        Self {
+            mailboxes: None, list: None, search: None, read: None, flag: None, unflag: None, move_: None,
+            delete: None, send: None, compose: None, reply: None, reply_all: None, forward: None,
+            seen_flag: "seen".into(),
+            flagged_flag: "flagged".into(),
+            fields: Fields::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -113,9 +137,14 @@ pub fn merge(base: &mut Table, over: Table) {
     }
 }
 
-/// Write the defaults out for editing. Never overwrites an existing file.
+/// Write the defaults out for editing. Never overwrites an existing file. The himalaya
+/// file is fully commented out, so it never shadows later fixes to the built-in preset.
 pub fn init(dir: &Path) -> Result<Vec<PathBuf>, String> {
-    let files = [("config.toml", DEFAULT_CONFIG), ("keys.toml", DEFAULT_KEYS), ("backends/himalaya.toml", HIMALAYA)];
+    let himalaya = format!(
+        "# Uncomment lines to override the built-in preset.\n{}",
+        HIMALAYA.lines().map(|l| format!("# {l}\n")).collect::<String>()
+    );
+    let files = [("config.toml", DEFAULT_CONFIG), ("keys.toml", DEFAULT_KEYS), ("backends/himalaya.toml", himalaya.as_str())];
     let mut written = Vec::new();
     for (rel, body) in files {
         let path = dir.join(rel);
@@ -190,6 +219,18 @@ mod tests {
     }
 
     #[test]
+    fn custom_backend_gets_flag_defaults() {
+        let d = tempfile::tempdir().unwrap();
+        fs::write(d.path().join("config.toml"), "backend = \"mycli\"\n").unwrap();
+        fs::create_dir(d.path().join("backends")).unwrap();
+        fs::write(d.path().join("backends/mycli.toml"), "list = \"mycli ls\"\n[fields]\nid = \"uid\"\n").unwrap();
+        let b = Config::load_from(d.path()).unwrap().backend;
+        assert_eq!((b.seen_flag.as_str(), b.flagged_flag.as_str(), b.fields.flag_name.as_str()), ("seen", "flagged", "name"));
+        let h = Config::load_from(tempfile::tempdir().unwrap().path()).unwrap().backend;
+        assert_eq!(h.fields.flag_name, "iana|raw", "the himalaya preset still overrides it");
+    }
+
+    #[test]
     fn bad_toml_names_the_file() {
         let d = tempfile::tempdir().unwrap();
         fs::write(d.path().join("config.toml"), "page_size = \"lots\"").unwrap();
@@ -201,6 +242,9 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         assert_eq!(init(d.path()).unwrap().len(), 3);
         assert!(init(d.path()).unwrap().is_empty());
-        assert!(d.path().join("backends/himalaya.toml").is_file());
+        let himalaya = d.path().join("backends/himalaya.toml");
+        assert!(read_table(&himalaya).unwrap().is_empty(), "every line is commented out");
+        assert!(fs::read_to_string(&himalaya).unwrap().contains("# search"), "but the preset is there to uncomment");
+        assert!(Config::load_from(d.path()).unwrap().backend.search.is_some(), "the preset still applies");
     }
 }
