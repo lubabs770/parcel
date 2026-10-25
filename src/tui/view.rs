@@ -127,6 +127,20 @@ fn reader(f: &mut Frame, app: &App, r: Rect) {
     f.render_widget(Paragraph::new(lines).block(block).wrap(Wrap { trim: false }).scroll((app.scroll, 0)), r);
 }
 
+/// The furthest the reader can scroll: its rendered rows (3 header rows, then each line
+/// wrapped to the pane's inner width) minus the rows that fit. Without a reader rect yet,
+/// the line count. ponytail: wraps by chars, not words or cell width, so a word-wrapped
+/// line can run a row longer than counted.
+pub(crate) fn max_scroll(app: &App) -> usize {
+    let Some((id, body)) = &app.reading else { return 0 };
+    let Some(&(_, r)) = app.rects.iter().find(|(p, _)| *p == Pane::Reader) else { return body.lines().count() };
+    let inner = panel(app, Pane::Reader, String::new()).inner(r);
+    let w = (inner.width as usize).max(1);
+    let header = if app.envelopes.iter().any(|e| e.id == *id) { 3 } else { 0 };
+    let rows: usize = body.lines().map(|l| l.chars().count().div_ceil(w).max(1)).sum();
+    (header + rows.max(1)).saturating_sub(inner.height as usize)
+}
+
 fn status_bar(f: &mut Frame, app: &App, r: Rect) {
     let t = app.theme;
     f.render_widget(Block::new().style(Style::new().bg(t.surface)), r);
@@ -198,7 +212,7 @@ mod tests {
             app.envelopes = vec![
                 env("3", "Ordered 1 item: Furniture", "Amazon.com", "2026-10-25T16:00:00Z", false, false),
                 env("2", "Review your keyboard", "Keychron", "2026-10-21T09:00:00Z", true, false),
-                env("1", "ENG-3039 merged", "Linear", "2026-10-03T12:00:00Z", true, true),
+                env("1", "Weekly build notes", "Linear", "2026-10-03T12:00:00Z", true, true),
             ];
             app.reading = Some(("3".into(), "Hi there,\n\nYour order shipped.\n> quoted line".into()));
             let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();

@@ -229,3 +229,59 @@ fn repaint_reloads_auto_theme_only() {
     assert_eq!(h.app.theme_name, "auto");
     assert!(h.app.status.is_none());
 }
+
+#[test]
+fn cached_body_is_per_mailbox() {
+    let mut h = harness().started();
+    h.app.act(Action::Open); // Inbox id "1" → cached
+    h.settle();
+    h.app.mailbox = "Archive".into();
+    h.app.load_list();
+    h.settle();
+    h.app.focus = Pane::List;
+    h.app.act(Action::Open); // Archive id "1": a different message with the same id
+    assert_eq!(h.app.reading, Some(("1".into(), String::new())), "Inbox's body is not served for Archive's id 1");
+    assert_eq!(h.app.busy, 1, "Archive's body is fetched");
+    h.app.update(Msg::Done(Done::Read { mailbox: "Inbox".into(), id: "1".into(), res: Ok("inbox body".into()) }));
+    assert_eq!(h.app.reading, Some(("1".into(), String::new())), "a late Inbox read doesn't fill Archive's reader");
+    h.settle();
+    assert!(h.app.reading.as_ref().unwrap().1.contains("Hi there"), "Archive's own read does");
+}
+
+#[test]
+fn reader_scrolls_to_the_last_wrapped_row() {
+    let mut h = harness().started();
+    // inner 10 wide x 4 high; 3 header rows + 3 + 1 + 1 + 1 body rows = 9 → max scroll 5
+    h.app.reading = Some(("1".into(), "0123456789abcdefghijk\n\nshort\nx".into()));
+    h.app.focus = Pane::Reader;
+    h.app.rects = vec![(Pane::Reader, Rect::new(0, 0, 12, 5))];
+    h.app.act(Action::Bottom);
+    assert_eq!(h.app.scroll, 5);
+    h.app.rects.clear();
+    h.app.act(Action::Bottom);
+    assert_eq!(h.app.scroll, 4, "no rect → falls back to the line count");
+}
+
+#[test]
+fn stale_failed_delete_does_not_duplicate_after_reload() {
+    let mut h = harness().started();
+    h.app.act(Action::Delete); // the fake's delete fails
+    h.app.load_list(); // reload before the delete settles
+    let mut msgs = vec![h.rx.recv().unwrap(), h.rx.recv().unwrap()];
+    // Worst order: the fresh list arrives first, then the stale failure.
+    msgs.sort_by_key(|m| matches!(m, Msg::Done(Done::Triage { .. })));
+    for m in msgs {
+        h.app.update(m);
+    }
+    let ids: Vec<&str> = h.app.envelopes.iter().map(|e| e.id.as_str()).collect();
+    assert_eq!(ids, ["1", "2"], "no duplicate row");
+    assert!(h.app.status.as_ref().is_some_and(|(m, err)| *err && m.contains("boom")), "the error still shows");
+}
+
+#[test]
+fn ctrl_c_quits() {
+    let mut h = harness().started();
+    h.press(KeyCode::Char('c'), KeyModifiers::CONTROL);
+    assert!(h.app.quit);
+    assert_eq!(h.app.busy, 0, "not compose");
+}

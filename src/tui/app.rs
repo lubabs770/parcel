@@ -61,7 +61,8 @@ pub struct App {
     pub last_click: Option<(Instant, u16, u16)>,
     pub quit: bool,
     pub(crate) omarchy_sig: String,
-    pub(crate) bodies: VecDeque<(String, String)>,
+    /// Recently read bodies, keyed by (mailbox, id): ids are only unique per mailbox.
+    pub(crate) bodies: VecDeque<(String, String, String)>,
     pub(crate) backend: Arc<Backend>,
     pub(crate) tx: Sender<Msg>,
 }
@@ -172,19 +173,22 @@ impl App {
                     Err(e) => self.error(e),
                 }
             }
-            Done::Read { id, res: Ok(body) } => {
-                self.bodies.push_back((id.clone(), body.clone()));
+            Done::Read { mailbox, id, res: Ok(body) } => {
+                let here = mailbox.eq_ignore_ascii_case(&self.mailbox);
+                self.bodies.push_back((mailbox, id.clone(), body.clone()));
                 if self.bodies.len() > 50 {
                     self.bodies.pop_front();
                 }
-                if self.reading.as_ref().is_some_and(|(r, _)| *r == id) {
+                if here && self.reading.as_ref().is_some_and(|(r, _)| *r == id) {
                     self.reading = Some((id, body));
                     self.scroll = 0;
                 }
             }
             Done::Triage { res: Ok(()), .. } => {}
-            Done::Triage { mailbox, undo, res: Err(e) } => {
-                if mailbox.eq_ignore_ascii_case(&self.mailbox) {
+            Done::Triage { mailbox, undo, generation, res: Err(e) } => {
+                // A removal goes back only into the listing it came from; a reload already has it.
+                let fresh = generation == self.list_gen || matches!(undo, Undo::Flag { .. });
+                if fresh && mailbox.eq_ignore_ascii_case(&self.mailbox) {
                     self.revert(undo);
                 }
                 self.error(e);

@@ -52,7 +52,8 @@ parcel needs an email CLI to drive. The default backend is
 | `?` | help |
 | `q` | quit |
 
-Arrow keys, Home and End always move, regardless of overrides. Mouse works
+Arrow keys, Home and End always move, and Ctrl+C always quits, regardless of
+overrides. Mouse works
 too: scroll a pane, click to select, double-click to open.
 
 Every key is rebindable — see Config below.

@@ -75,6 +75,11 @@ impl App {
             }
             Mode::Picker(_) => return self.picker_key(k),
         }
+        // Raw mode swallows SIGINT, so Ctrl+C is a key: quit, whatever the keymap says.
+        if k.code == KeyCode::Char('c') && k.modifiers.contains(KeyModifiers::CONTROL) {
+            self.quit = true;
+            return None;
+        }
         let action = self.keys.action(k)?;
         self.act(action)
     }
@@ -168,10 +173,7 @@ impl App {
                 self.list_sel = clamp(self.list_sel, self.envelopes.len());
                 self.prefetch();
             }
-            Pane::Reader => {
-                let lines = self.reading.as_ref().map_or(0, |(_, b)| b.lines().count());
-                self.scroll = clamp(self.scroll as usize, lines) as u16;
-            }
+            Pane::Reader => self.scroll = clamp(self.scroll as usize, super::view::max_scroll(self) + 1) as u16,
         }
     }
 
@@ -188,8 +190,8 @@ impl App {
                 let id = env.id.clone();
                 self.focus = Pane::Reader;
                 self.scroll = 0;
-                match self.bodies.iter().find(|(i, _)| *i == id) {
-                    Some((_, body)) => self.reading = Some((id, body.clone())),
+                match self.bodies.iter().find(|(m, i, _)| *i == id && m.eq_ignore_ascii_case(&self.mailbox)) {
+                    Some((_, _, body)) => self.reading = Some((id, body.clone())),
                     None => {
                         self.reading = Some((id.clone(), String::new()));
                         self.spawn(Job::Read { mailbox: self.mailbox.clone(), id });
@@ -250,8 +252,8 @@ impl App {
         let prev = *slot;
         *slot = !prev;
         let id = e.id.clone();
-        let mailbox = self.mailbox.clone();
-        self.spawn(Job::Triage { mailbox, id: id.clone(), op: Op::Flag { flag, on: !prev }, undo: Undo::Flag { id, flag, prev } });
+        let (mailbox, generation) = (self.mailbox.clone(), self.list_gen);
+        self.spawn(Job::Triage { mailbox, id: id.clone(), op: Op::Flag { flag, on: !prev }, undo: Undo::Flag { id, flag, prev }, generation });
     }
 
     pub(crate) fn remove(&mut self, op: Op) {
@@ -262,8 +264,8 @@ impl App {
             self.focus = Pane::List;
         }
         self.list_sel = self.list_sel.min(self.envelopes.len().saturating_sub(1));
-        let mailbox = self.mailbox.clone();
-        self.spawn(Job::Triage { mailbox, id: env.id.clone(), op, undo: Undo::Removed { env } });
+        let (mailbox, generation) = (self.mailbox.clone(), self.list_gen);
+        self.spawn(Job::Triage { mailbox, id: env.id.clone(), op, undo: Undo::Removed { env }, generation });
         self.prefetch();
     }
 
